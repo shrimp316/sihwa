@@ -155,6 +155,12 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 .end-sub{font-family:'Noto Sans KR',sans-serif;font-size:0.7rem;color:var(--ink-lite);letter-spacing:0.15em;}
 .swipe-hint{text-align:center;font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.12em;padding:1rem;opacity:0.6;}
 .empty-state{text-align:center;padding:3rem 1rem;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#7a6a50;line-height:2;}
+.quarter-intro{max-width:580px;margin:0 auto;padding:0 2rem 4rem;text-align:center;}
+.quarter-intro-body{font-size:0.9rem;color:var(--ink-lite);line-height:2.2;white-space:pre-line;font-weight:300;font-style:italic;}
+.free-section-page{min-height:30vh;display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:0.5px solid var(--border);border-top:0.5px solid var(--border);padding:2.5rem 2rem;text-align:center;margin-top:1rem;}
+.free-section-page-label{font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--spine);letter-spacing:0.25em;margin-bottom:0.6rem;}
+.free-section-page-title{font-size:1.2rem;font-weight:300;color:var(--ink-mid);}
+.toc-free-label{font-family:'Noto Sans KR',sans-serif;font-size:0.7rem;color:var(--spine);letter-spacing:0.15em;margin-bottom:0.5rem;margin-top:0.8rem;}
 
 @media(max-width:600px){
   .cover-main-title{font-size:2rem;}
@@ -215,6 +221,7 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
       <button class="edit-tab active" onclick="switchTab('quarters')">분기 관리</button>
       <button class="edit-tab" onclick="switchTab('rounds')">회차 관리</button>
       <button class="edit-tab" onclick="switchTab('poems')">시 관리</button>
+      <button class="edit-tab" onclick="switchTab('free')">자유시</button>
     </div>
     <div class="edit-tab-content active" id="tab-quarters">
       <div class="edit-section-header">
@@ -236,6 +243,13 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
         <button class="edit-add-btn" onclick="openPoemModal()">+ 시 추가</button>
       </div>
       <div id="poems-body"></div>
+    </div>
+    <div class="edit-tab-content" id="tab-free">
+      <div class="edit-section-header">
+        <div class="edit-section-title">자유시 목록</div>
+        <button class="edit-add-btn" onclick="openFreePoemModal()">+ 자유시 추가</button>
+      </div>
+      <div id="free-body"></div>
     </div>
   </div>
 </div>
@@ -269,6 +283,10 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
     <div class="form-group">
       <label class="form-label">분기 대주제</label>
       <input type="text" class="form-input" id="q-title" placeholder="예: 계절, 관계, 기억...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">분기 소개글 (선택 — 분기 타이틀 아래 표시)</label>
+      <textarea class="form-textarea" id="q-intro" placeholder="이번 분기를 소개하는 글을 입력하세요..." style="min-height:100px;"></textarea>
     </div>
     <div class="form-group">
       <label class="form-label">정렬 순서 (낮을수록 앞)</label>
@@ -313,8 +331,19 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   <div class="modal-box">
     <div class="modal-title" id="poem-modal-title">시 추가</div>
     <div class="form-group">
+      <label class="form-label">유형</label>
+      <select class="form-select" id="p-type" onchange="togglePoemType()">
+        <option value="round">회차 시</option>
+        <option value="free">자유시</option>
+      </select>
+    </div>
+    <div id="p-round-group" class="form-group">
       <label class="form-label">소속 회차</label>
       <select class="form-select" id="p-round"></select>
+    </div>
+    <div id="p-quarter-group" class="form-group" style="display:none;">
+      <label class="form-label">소속 분기 (자유시)</label>
+      <select class="form-select" id="p-quarter-free"></select>
     </div>
     <div class="form-group">
       <label class="form-label">시인 이름</label>
@@ -403,13 +432,18 @@ const SAMPLE = {
       body:`처음 본 얼굴인데\n어딘가 낯이 익었다\n\n아마도 내가 오래\n기다려온 얼굴이라서`},
     { id:'p5', roundId:'r4', poet:'정우찬', title:'이별의 문법', order:0,
       body:`이별에도 문법이 있다면\n주어는 언제나 둘이고\n동사는 언제나 하나다\n\n우리는 같은 문장을\n다른 시제로 읽었다`},
+  ],
+  freePoems: [
+    { id:'f1', quarterId:'q1', poet:'오하린', title:'여백', order:0,
+      body:'아무것도 쓰지 않은 페이지가
+가장 많은 말을 한다' },
   ]
 };
 
 /* ═══════════════════════════
    STATE
    ═══════════════════════════ */
-let quarters = [], rounds = [], poems = [];
+let quarters = [], rounds = [], poems = [], freePoems = [];
 let currentView = 'cover', editMode = false, activeTab = 'quarters';
 let editingQuarterId = null, editingRoundId = null, editingPoemId = null;
 let deletingType = null, deletingId = null;
@@ -420,6 +454,7 @@ let deletingType = null, deletingId = null;
 const getRoundsOf  = qid => rounds.filter(r => r.quarterId === qid).sort((a,b) => a.order - b.order);
 const getPoemsOf   = rid => poems.filter(p => p.roundId   === rid).sort((a,b) => a.order - b.order);
 const getQuarter   = id  => quarters.find(q => q.id === id);
+const getFreeOf    = qid => freePoems.filter(f => f.quarterId === qid).sort((a,b) => a.order - b.order);
 const getRound     = id  => rounds.find(r => r.id === id);
 
 /* ═══════════════════════════
@@ -428,14 +463,16 @@ const getRound     = id  => rounds.find(r => r.id === id);
 async function loadAll() {
   if (firebaseReady) {
     try {
-      const [qs, rs, ps] = await Promise.all([
+      const [qs, rs, ps, fs] = await Promise.all([
         db.collection('quarters').orderBy('order').get(),
         db.collection('rounds').orderBy('order').get(),
         db.collection('poems').orderBy('order').get(),
+        db.collection('freePoems').orderBy('order').get(),
       ]);
-      quarters = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-      rounds   = rs.docs.map(d => ({ id:d.id, ...d.data() }));
-      poems    = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      quarters  = qs.docs.map(d => ({ id:d.id, ...d.data() }));
+      rounds    = rs.docs.map(d => ({ id:d.id, ...d.data() }));
+      poems     = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      freePoems = fs.docs.map(d => ({ id:d.id, ...d.data() }));
       if (!quarters.length) useSample();
     } catch(e) { console.warn("Firestore 읽기 실패", e); useSample(); }
   } else { useSample(); }
@@ -444,14 +481,20 @@ async function loadAll() {
 }
 
 function useSample() {
-  quarters = SAMPLE.quarters;
-  rounds   = SAMPLE.rounds;
-  poems    = SAMPLE.poems;
+  quarters  = SAMPLE.quarters;
+  rounds    = SAMPLE.rounds;
+  poems     = SAMPLE.poems;
+  freePoems = SAMPLE.freePoems;
 }
 
 function renderAll() {
   renderCover(); renderToc(); renderBook();
   if (editMode) renderEditAll();
+}
+function getQuarterPoets(q) {
+  const rPoems = getRoundsOf(q.id).flatMap(r => getPoemsOf(r.id));
+  const fPoems = getFreeOf(q.id);
+  return [...new Set([...rPoems,...fPoems].map(p=>p.poet))];
 }
 
 /* ═══════════════════════════
@@ -487,6 +530,18 @@ function renderToc() {
       });
       html += `</div>`;
     });
+    // 자유시
+    const fPoems = getFreeOf(q.id);
+    if (fPoems.length) {
+      html += `<div class='toc-round'><div class='toc-free-label'>자유시</div>`;
+      fPoems.forEach(p => {
+        html += `<div class='toc-item' onclick='jumpToFree("${p.id}")'>
+          <span class='toc-item-title'>${p.title}</span>
+          <span class='toc-item-poet'>${p.poet}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
     html += `</div>`;
   });
   document.getElementById('toc-body').innerHTML = html ||
@@ -529,7 +584,7 @@ function renderBook() {
 /* ═══════════════════════════
    RENDER EDIT
    ═══════════════════════════ */
-function renderEditAll() { renderQuartersEdit(); renderRoundsEdit(); renderPoemsEdit(); }
+function renderEditAll() { renderQuartersEdit(); renderRoundsEdit(); renderPoemsEdit(); renderFreeEdit(); }
 
 function renderQuartersEdit() {
   document.getElementById('quarters-body').innerHTML = quarters.length
@@ -621,7 +676,7 @@ function showBook() { showView('book'); }
 /* EDIT TABS */
 function switchTab(name) {
   activeTab = name;
-  const tabs = ['quarters','rounds','poems'];
+  const tabs = ['quarters','rounds','poems','free'];
   document.querySelectorAll('.edit-tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.edit-tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
@@ -631,7 +686,7 @@ function switchTab(name) {
    NAVIGATION
    ═══════════════════════════ */
 function getNavEls() {
-  return [...document.querySelectorAll('.quarter-page,.round-page,.poem-entry')];
+  return [...document.querySelectorAll('.quarter-page,.round-page,.poem-entry,.free-section-page')];
 }
 function getCurrentIdx() {
   const els = getNavEls(), scrollY = window.scrollY + 120;
@@ -651,6 +706,12 @@ function updateNav() {
   } else if (el.dataset.type === 'round') {
     const r = getRound(el.dataset.id);
     document.getElementById('page-indicator').textContent = r ? `${r.num}회차 — ${r.title}` : '';
+  } else if (el.dataset.type === 'free-section') {
+    const q = getQuarter(el.dataset.id);
+    document.getElementById('page-indicator').textContent = q ? q.title + ' 자유시' : '';
+  } else if (el.dataset.type === 'free') {
+    const q = getQuarter(el.dataset.quarter);
+    document.getElementById('page-indicator').textContent = q ? q.title + ' 자유시' : '';
   } else {
     const r = getRound(el.dataset.round);
     document.getElementById('page-indicator').textContent = r ? r.title : '';
@@ -676,6 +737,20 @@ function jumpTo(poemId) {
   }, 100);
 }
 
+function jumpToFree(freeId) {
+  showView('book');
+  setTimeout(() => {
+    const el = document.querySelector();
+    if (el) { scrollToEl(el); updateNav(); }
+  }, 100);
+}
+function jumpToFree(freeId) {
+  showView('book');
+  setTimeout(() => {
+    const el = document.querySelector('[data-type="free"][data-id="' + freeId + '"]');
+    if (el) { scrollToEl(el); updateNav(); }
+  }, 100);
+}
 window.addEventListener('scroll', () => { if (currentView==='book') updateNav(); }, { passive:true });
 
 /* SWIPE */
@@ -737,6 +812,7 @@ function openQuarterModal(id) {
   document.getElementById('quarter-modal-title').textContent = id ? '분기 수정' : '분기 추가';
   const q = id ? getQuarter(id) : null;
   document.getElementById('q-title').value = q ? q.title : '';
+  document.getElementById('q-intro').value = q ? (q.intro||'') : '';
   document.getElementById('q-order').value = q ? q.order : quarters.length;
   document.getElementById('quarter-modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('q-title').focus(), 100);
@@ -744,9 +820,10 @@ function openQuarterModal(id) {
 function closeQuarterModal() { document.getElementById('quarter-modal').classList.add('hidden'); editingQuarterId=null; }
 async function saveQuarter() {
   const title = document.getElementById('q-title').value.trim();
+  const intro = document.getElementById('q-intro').value.trim();
   const order = parseInt(document.getElementById('q-order').value)||0;
   if (!title) { alert('대주제를 입력해주세요.'); return; }
-  const data = { title, order };
+  const data = { title, intro, order };
   if (firebaseReady) {
     try {
       if (editingQuarterId) await db.collection('quarters').doc(editingQuarterId).update(data);
@@ -813,7 +890,10 @@ function fillRoundSelect(selId, selectedId) {
 function openPoemModal(id) {
   if (!rounds.length) { alert('회차를 먼저 만들어주세요.'); return; }
   editingPoemId = id || null;
+  editingFreePoemId = null;
   document.getElementById('poem-modal-title').textContent = id ? '시 수정' : '시 추가';
+  document.getElementById('p-type').value = 'round';
+  togglePoemType();
   const p = id ? poems.find(x=>x.id===id) : null;
   fillRoundSelect('p-round', p ? p.roundId : rounds[0].id);
   document.getElementById('p-poet').value  = p ? p.poet  : '';
@@ -830,7 +910,22 @@ async function savePoem() {
   const title   = document.getElementById('p-title').value.trim();
   const body    = document.getElementById('p-body').value;
   const order   = parseInt(document.getElementById('p-order').value)||0;
+  const ptype = document.getElementById('p-type').value;
   if (!poet||!title||!body) { alert('시인, 제목, 본문은 필수입니다.'); return; }
+  if (ptype==='free') {
+    const quarterId = document.getElementById('p-quarter-free').value;
+    const data = { quarterId, poet, title, body, order };
+    if (firebaseReady) {
+      try {
+        if (editingFreePoemId) await db.collection('freePoems').doc(editingFreePoemId).update(data);
+        else await db.collection('freePoems').add(data);
+        closePoemModal(); await loadAll(); return;
+      } catch(e) { alert('저장 실패'); return; }
+    }
+    if (editingFreePoemId) { const i=freePoems.findIndex(p=>p.id===editingFreePoemId); if(i>=0) freePoems[i]={...freePoems[i],...data}; }
+    else freePoems.push({ id:'f_'+Date.now(), ...data });
+    closePoemModal(); renderAll(); return;
+  }
   const data = { roundId, poet, title, body, order };
   if (firebaseReady) {
     try {
@@ -855,15 +950,74 @@ function openDelModal(type, id, name) {
 function closeDelModal() { document.getElementById('del-modal').classList.add('hidden'); deletingType=null; deletingId=null; }
 async function confirmDelete() {
   if (!deletingId) return;
-  const col = deletingType==='quarter'?'quarters':deletingType==='round'?'rounds':'poems';
+  const col = deletingType==='quarter'?'quarters':deletingType==='round'?'rounds':deletingType==='freePoem'?'freePoems':'poems';
   if (firebaseReady) {
     try { await db.collection(col).doc(deletingId).delete(); closeDelModal(); await loadAll(); return; }
     catch(e) { alert('삭제 실패'); return; }
   }
   if (deletingType==='quarter') quarters = quarters.filter(q=>q.id!==deletingId);
   else if (deletingType==='round') rounds = rounds.filter(r=>r.id!==deletingId);
+  else if (deletingType==='freePoem') freePoems = freePoems.filter(p=>p.id!==deletingId);
   else poems = poems.filter(p=>p.id!==deletingId);
   closeDelModal(); renderAll();
+}
+
+/* ═══════════════════════════
+   자유시 CRUD
+   ═══════════════════════════ */
+let editingFreePoemId = null;
+
+function togglePoemType() {
+  const type = document.getElementById('p-type').value;
+  document.getElementById('p-round-group').style.display   = type==='round' ? '' : 'none';
+  document.getElementById('p-quarter-group').style.display = type==='free'  ? '' : 'none';
+}
+
+function fillQuarterFreeSelect(selId, selectedId) {
+  document.getElementById(selId).innerHTML = quarters
+    .map(q => '<option value="'+q.id+'" '+(q.id===selectedId?'selected':'')+'>'+q.title+'</option>').join('');
+}
+
+function openFreePoemModal(id) {
+  if (!quarters.length) { alert('분기를 먼저 만들어주세요.'); return; }
+  editingFreePoemId = id || null;
+  document.getElementById('poem-modal-title').textContent = id ? '자유시 수정' : '자유시 추가';
+  const p = id ? freePoems.find(x=>x.id===id) : null;
+  document.getElementById('p-type').value = 'free';
+  togglePoemType();
+  fillQuarterFreeSelect('p-quarter-free', p ? p.quarterId : quarters[0].id);
+  document.getElementById('p-poet').value  = p ? p.poet  : '';
+  document.getElementById('p-title').value = p ? p.title : '';
+  document.getElementById('p-body').value  = p ? p.body  : '';
+  document.getElementById('p-order').value = p ? p.order : freePoems.length;
+  document.getElementById('poem-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('p-poet').focus(), 100);
+}
+
+function renderFreeEdit() {
+  const body = document.getElementById('free-body');
+  if (!freePoems.length) {
+    body.innerHTML = '<div class="empty-state">자유시가 없어요.</div>'; return;
+  }
+  let html = '';
+  quarters.forEach(q => {
+    const qFree = getFreeOf(q.id);
+    if (!qFree.length) return;
+    html += '<div class="edit-group"><div class="edit-group-label"><span>'+q.title+'</span> 자유시</div>';
+    qFree.forEach(p => {
+      const safeTitle = p.title.replace(/'/g, "\'");
+      html += '<div class="edit-card"><div class="edit-card-info">'
+        + '<div class="edit-card-title">'+p.title+'</div>'
+        + '<div class="edit-card-sub">'+p.poet+'</div>'
+        + '<div class="edit-card-preview">'+p.body.replace(/\n/g,' ')+'</div>'
+        + '</div><div class="edit-card-actions">'
+        + '<button class="ecard-btn" onclick="openFreePoemModal(\''+p.id+'\')">수정</button>'
+        + '<button class="ecard-btn del" onclick="openDelModal(\'freePoem\',\''+p.id+'\',\''+safeTitle+'\')">삭제</button>'
+        + '</div></div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html || '<div class="empty-state">등록된 자유시가 없어요.</div>';
 }
 
 /* ═══════════════════════════
@@ -880,3 +1034,7 @@ loadAll();
 </script>
 </body>
 </html>
+
+
+
+
