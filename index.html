@@ -155,6 +155,10 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 .end-sub{font-family:'Noto Sans KR',sans-serif;font-size:0.7rem;color:var(--ink-lite);letter-spacing:0.15em;}
 .swipe-hint{text-align:center;font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.12em;padding:1rem;opacity:0.6;}
 .empty-state{text-align:center;padding:3rem 1rem;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#7a6a50;line-height:2;}
+.filter-bar{display:flex;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap;}
+.filter-select{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--edit-text);background:var(--edit-bg);border:0.5px solid var(--edit-border);border-radius:16px;padding:6px 12px;outline:none;cursor:pointer;transition:border-color 0.15s;}
+.filter-select:focus{border-color:var(--edit-gold);}
+.filter-select option{background:var(--edit-bg);}
 .quarter-intro{max-width:580px;margin:0 auto;padding:0 2rem 4rem;text-align:center;}
 .quarter-intro-body{font-size:0.9rem;color:var(--ink-lite);line-height:2.2;white-space:pre-line;font-weight:300;font-style:italic;}
 .free-section-page{min-height:30vh;display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:0.5px solid var(--border);border-top:0.5px solid var(--border);padding:2.5rem 2rem;text-align:center;margin-top:1rem;}
@@ -193,7 +197,7 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
     <div class="cover-ornament">✦ ✦ ✦</div>
     <div class="cover-main-title">글빛을 모아 담다 시화 詩和</div>
     <div class="cover-poets" id="cover-poets-list">불러오는 중...</div>
-    <div class="cover-year">2024</div>
+    <div class="cover-year">2026</div>
     <button class="cover-start-btn" onclick="showToc()">차례 보기</button>
   </div>
 
@@ -235,12 +239,25 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
         <div class="edit-section-title">회차 목록</div>
         <button class="edit-add-btn" onclick="openRoundModal()">+ 회차 추가</button>
       </div>
+      <div class="filter-bar">
+        <select class="filter-select" id="filter-round-quarter" onchange="renderRoundsEdit()">
+          <option value="">전체 분기</option>
+        </select>
+      </div>
       <div id="rounds-body"></div>
     </div>
     <div class="edit-tab-content" id="tab-poems">
       <div class="edit-section-header">
         <div class="edit-section-title">시 목록</div>
         <button class="edit-add-btn" onclick="openPoemModal()">+ 시 추가</button>
+      </div>
+      <div class="filter-bar">
+        <select class="filter-select" id="filter-poem-quarter" onchange="onPoemQuarterFilter()">
+          <option value="">전체 분기</option>
+        </select>
+        <select class="filter-select" id="filter-poem-round" onchange="renderPoemsEdit()">
+          <option value="">전체 회차</option>
+        </select>
       </div>
       <div id="poems-body"></div>
     </div>
@@ -583,7 +600,46 @@ function renderBook() {
 /* ═══════════════════════════
    RENDER EDIT
    ═══════════════════════════ */
-function renderEditAll() { renderQuartersEdit(); renderRoundsEdit(); renderPoemsEdit(); renderFreeEdit(); }
+function renderEditAll() {
+  renderQuartersEdit();
+  populateRoundFilter();
+  renderRoundsEdit();
+  populatePoemFilters();
+  renderPoemsEdit();
+  renderFreeEdit();
+}
+
+function populateRoundFilter() {
+  const sel = document.getElementById('filter-round-quarter');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">전체 분기</option>' +
+    quarters.map(q => '<option value="'+q.id+'"'+(q.id===cur?' selected':'')+'>'+q.title+'</option>').join('');
+}
+
+function populatePoemFilters() {
+  const qSel = document.getElementById('filter-poem-quarter');
+  const rSel = document.getElementById('filter-poem-round');
+  if (!qSel||!rSel) return;
+  const curQ = qSel.value, curR = rSel.value;
+  qSel.innerHTML = '<option value="">전체 분기</option>' +
+    quarters.map(q => '<option value="'+q.id+'"'+(q.id===curQ?' selected':'')+'>'+q.title+'</option>').join('');
+  updateRoundFilter(curQ, curR);
+}
+
+function updateRoundFilter(quarterId, selectedRoundId) {
+  const rSel = document.getElementById('filter-poem-round');
+  if (!rSel) return;
+  const filteredRounds = quarterId ? getRoundsOf(quarterId) : rounds;
+  rSel.innerHTML = '<option value="">전체 회차</option>' +
+    filteredRounds.map(r => '<option value="'+r.id+'"'+(r.id===selectedRoundId?' selected':'')+'>'+r.num+'회차 — '+r.title+'</option>').join('');
+}
+
+function onPoemQuarterFilter() {
+  const qId = document.getElementById('filter-poem-quarter').value;
+  updateRoundFilter(qId, '');
+  renderPoemsEdit();
+}
 
 function renderQuartersEdit() {
   document.getElementById('quarters-body').innerHTML = quarters.length
@@ -601,8 +657,10 @@ function renderQuartersEdit() {
 }
 
 function renderRoundsEdit() {
+  const filterQ = (document.getElementById('filter-round-quarter')||{}).value || '';
   let html = '';
-  quarters.forEach(q => {
+  const filteredQuarters = filterQ ? quarters.filter(q=>q.id===filterQ) : quarters;
+  filteredQuarters.forEach(q => {
     const qRounds = getRoundsOf(q.id);
     if (!qRounds.length) return;
     html += `<div class="edit-group"><div class="edit-group-label"><span>${q.title}</span> 분기</div>`;
@@ -621,13 +679,17 @@ function renderRoundsEdit() {
     html += `</div>`;
   });
   document.getElementById('rounds-body').innerHTML = html ||
-    `<div class="empty-state">분기를 먼저 만든 후 회차를 추가하세요.</div>`;
+    `<div class="empty-state">해당 분기의 회차가 없어요.</div>`;
 }
 
 function renderPoemsEdit() {
+  const filterQ = (document.getElementById('filter-poem-quarter')||{}).value || '';
+  const filterR = (document.getElementById('filter-poem-round')||{}).value || '';
   let html = '';
-  quarters.forEach(q => {
-    getRoundsOf(q.id).forEach(r => {
+  const filteredQuarters = filterQ ? quarters.filter(q=>q.id===filterQ) : quarters;
+  filteredQuarters.forEach(q => {
+    const qRounds = filterR ? getRoundsOf(q.id).filter(r=>r.id===filterR) : getRoundsOf(q.id);
+    qRounds.forEach(r => {
       const rPoems = getPoemsOf(r.id);
       if (!rPoems.length) return;
       html += `<div class="edit-group">
@@ -649,7 +711,7 @@ function renderPoemsEdit() {
     });
   });
   document.getElementById('poems-body').innerHTML = html ||
-    `<div class="empty-state">회차를 먼저 만든 후 시를 추가하세요.</div>`;
+    `<div class="empty-state">해당 조건의 시가 없어요.</div>`;
 }
 
 /* ═══════════════════════════
