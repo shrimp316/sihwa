@@ -957,22 +957,20 @@ function updateNav() {
   }
 }
 
-function prevSection() {
-  const els = getNavEls(), idx = getCurrentIdx();
-  if (idx > 0) doFlip(() => scrollToEl(els[idx-1]));
-}
-function nextSection() {
-  const els = getNavEls(), idx = getCurrentIdx();
-  if (idx < els.length-1) doFlip(() => scrollToEl(els[idx+1]));
-}
+
 function scrollToEl(el) {
   window.scrollTo({ top: Math.max(0, el.offsetTop - 58), behavior:'smooth' });
 }
 function jumpTo(poemId) {
   showView('book');
   setTimeout(() => {
-    const el = document.querySelector(`.poem-entry[data-id="${poemId}"]`);
-    if (el) { scrollToEl(el); updateNav(); }
+    if (viewMode === 'page') {
+      const idx = pageItems.findIndex(item => (item.type==='poem'||item.type==='free') && item.p && item.p.id===poemId);
+      if (idx>=0) { currentPageIdx=idx; renderPageCard(); }
+    } else {
+      const el = document.querySelector('.poem-entry[data-id="'+poemId+'"]');
+      if (el) { scrollToEl(el); updateNav(); }
+    }
   }, 100);
 }
 
