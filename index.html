@@ -15,9 +15,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="시화 詩和">
-<link rel="apple-touch-icon" href="icons/icon-180x180.png">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+<link rel="apple-touch-icon" href="icon-512x512.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-512x512.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icon-192x192.png">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -967,14 +967,7 @@ function updateNav() {
   }
 }
 
-function prevSection() {
-  const els = getNavEls(), idx = getCurrentIdx();
-  if (idx > 0) doFlip(() => scrollToEl(els[idx-1]));
-}
-function nextSection() {
-  const els = getNavEls(), idx = getCurrentIdx();
-  if (idx < els.length-1) doFlip(() => scrollToEl(els[idx+1]));
-}
+
 function scrollToEl(el) {
   window.scrollTo({ top: Math.max(0, el.offsetTop - 58), behavior:'smooth' });
 }
