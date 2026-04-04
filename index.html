@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리가 남긴 말들</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --cream:    #fdf8f0;
+  --cream2:   #fdf4e7;
+  --tan:      #f0e4cc;
+  --gold:     #c8a06a;
+  --gold-d:   #9a7040;
+  --ink:      #3a2e1e;
+  --ink-mid:  #6b5a42;
+  --ink-lite: #a08060;
+  --spine:    #d4b98a;
+  --border:   #e0ceaa;
+  --shadow:   rgba(100,70,30,0.12);
+  --edit-bg:  #1e1a14;
+  --edit-panel: #2a2318;
+  --edit-border: #4a3e2e;
+  --edit-gold: #c8a06a;
+  --edit-text: #e8d8b8;
+}
+
+html { font-size: 16px; }
+body {
+  background: var(--tan);
+  font-family: 'Noto Serif KR', serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--ink);
+  user-select: none;
+}
+
+/* ── LOADING ── */
+#loading {
+  position: fixed; inset: 0;
+  background: var(--cream2);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.6s;
+}
+#loading .load-title {
+  font-size: 1.4rem; font-weight: 400;
+  color: var(--ink-mid);
+  letter-spacing: 0.15em;
+  margin-bottom: 1.5rem;
+}
+.load-dots { display: flex; gap: 8px; }
+.load-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold);
+  animation: bounce 1.2s ease-in-out infinite;
+}
+.load-dots span:nth-child(2) { animation-delay: 0.2s; }
+.load-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-10px)} }
+#loading.hidden { opacity: 0; pointer-events: none; }
+
+/* ── TOP BAR ── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 50px;
+  background: var(--cream2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 1.5rem;
+  z-index: 100;
+  gap: 1rem;
+}
+.tb-title {
+  font-size: 0.85rem; font-weight: 500;
+  color: var(--ink); letter-spacing: 0.12em;
+  flex: 1;
+}
+.tb-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.72rem; font-weight: 400;
+  color: var(--ink-lite);
+  background: none; border: 0.5px solid var(--border);
+  padding: 5px 12px; border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.06em;
+}
+.tb-btn:hover { background: var(--tan); color: var(--ink); }
+.tb-btn.active { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+
+/* ── MAIN LAYOUT ── */
+#main {
+  padding-top: 50px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── COVER PAGE ── */
+#cover {
+  min-height: calc(100vh - 50px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+.cover-ornament {
+  font-size: 1.5rem; color: var(--gold);
+  letter-spacing: 0.4em;
+  margin-bottom: 2.5rem;
+}
+.cover-main-title {
+  font-size: 2.6rem; font-weight: 300;
+  color: var(--ink); letter-spacing: 0.06em;
+  line-height: 1.3; margin-bottom: 1.2rem;
+}
+.cover-poets {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.78rem; color: var(--ink-lite);
+  letter-spacing: 0.2em; margin-bottom: 3rem;
+  line-height: 2;
+}
+.cover-year {
+  font-size: 0.72rem; color: var(--spine);
+  letter-spacing: 0.25em;
+  font-family: 'Noto Sans KR', sans-serif;
+  margin-bottom: 3rem;
+}
+.cover-start-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.78rem; color: var(--ink-mid);
+  background: none; border: 0.5px solid var(--border);
+  padding: 10px 28px; border-radius: 24px;
+  cursor: pointer; letter-spacing: 0.1em;
+  transition: all 0.2s;
+}
+.cover-start-btn:hover { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+
+/* ── TOC ── */
+#toc-view {
+  width: 100%; max-width: 680px;
+  padding: 3rem 2rem 4rem;
+  display: none;
+}
+#toc-view.active { display: block; }
+.toc-header {
+  font-size: 0.72rem; letter-spacing: 0.2em;
+  color: var(--ink-lite); text-transform: uppercase;
+  font-family: 'Noto Sans KR', sans-serif;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+.toc-section-label {
+  font-size: 0.68rem; letter-spacing: 0.18em;
+  color: var(--gold); text-transform: uppercase;
+  font-family: 'Noto Sans KR', sans-serif;
+  margin: 1.8rem 0 0.8rem;
+}
+.toc-item {
+  display: flex; align-items: baseline;
+  padding: 0.55rem 0;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  gap: 12px;
+  transition: all 0.15s;
+}
+.toc-item:hover { padding-left: 8px; }
+.toc-item:hover .toc-item-title { color: var(--ink); }
+.toc-item-title {
+  flex: 1; font-size: 0.9rem; color: var(--ink-mid);
+  line-height: 1.4;
+}
+.toc-item-poet {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem; color: var(--ink-lite);
+}
+
+/* ── BOOK VIEW ── */
+#book-view {
+  display: none;
+  width: 100%;
+  padding-bottom: 5rem;
+}
+#book-view.active { display: block; }
+
+/* SECTION TITLE PAGE */
+.section-page {
+  min-height: 70vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  border-bottom: 0.5px solid var(--border);
+  padding: 4rem 2rem;
+  text-align: center;
+  position: relative;
+}
+.section-page::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  border: 0.5px solid var(--border);
+  pointer-events: none;
+}
+.section-page-eyebrow {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem; color: var(--gold);
+  letter-spacing: 0.25em; text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+.section-page-name {
+  font-size: 2rem; font-weight: 300;
+  color: var(--ink); letter-spacing: 0.05em;
+}
+
+/* POEM ENTRY */
+.poem-entry {
+  max-width: 640px; margin: 0 auto;
+  padding: 4.5rem 2rem 4rem;
+  border-bottom: 0.5px solid var(--border);
+  position: relative;
+}
+.poem-entry:last-child { border-bottom: none; }
+.poem-entry-poet {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.65rem; letter-spacing: 0.2em;
+  color: var(--gold); text-transform: uppercase;
+  margin-bottom: 0.7rem;
+}
+.poem-entry-title {
+  font-size: 1.4rem; font-weight: 400;
+  color: var(--ink); margin-bottom: 1.6rem;
+  line-height: 1.3;
+}
+.poem-entry-divider {
+  width: 24px; height: 0.5px;
+  background: var(--spine); margin-bottom: 1.6rem;
+}
+.poem-entry-body {
+  font-size: 0.95rem; color: var(--ink-mid);
+  line-height: 2.2; white-space: pre-line;
+  font-weight: 300;
+}
+
+/* ── FLIP ANIMATION (mobile-feel) ── */
+#page-turn-overlay {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  perspective: 1200px;
+}
+.flip-sheet {
+  position: absolute; inset: 0;
+  background: var(--cream2);
+  transform-origin: left center;
+  transform: rotateY(0deg);
+  transition: transform 0.5s cubic-bezier(0.645, 0.045, 0.355, 1.000);
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 20px var(--shadow);
+}
+.flip-sheet.flip-out { transform: rotateY(-90deg); }
+
+/* ── BOTTOM NAV ── */
+#bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: var(--cream2);
+  border-top: 1px solid var(--border);
+  display: none;
+  align-items: center; justify-content: space-between;
+  padding: 0 1.5rem;
+  z-index: 100;
+}
+#bottom-nav.active { display: flex; }
+.bnav-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.75rem; color: var(--ink-lite);
+  background: none; border: none; cursor: pointer;
+  padding: 8px 16px;
+  transition: color 0.15s;
+}
+.bnav-btn:disabled { opacity: 0.3; cursor: default; }
+.bnav-btn:not(:disabled):hover { color: var(--ink); }
+#page-indicator {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem; color: var(--ink-lite);
+  letter-spacing: 0.08em;
+}
+
+/* ── EDIT MODE ── */
+body.edit-mode { background: var(--edit-bg); }
+body.edit-mode #topbar { background: var(--edit-panel); border-color: var(--edit-border); }
+body.edit-mode .tb-title { color: var(--edit-gold); }
+
+#edit-panel {
+  display: none;
+  width: 100%; max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 5rem;
+}
+#edit-panel.active { display: block; }
+
+.edit-section-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.edit-section-title {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.72rem; color: var(--edit-gold);
+  letter-spacing: 0.15em; text-transform: uppercase;
+}
+.edit-add-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.72rem; color: var(--edit-bg);
+  background: var(--edit-gold); border: none;
+  padding: 7px 16px; border-radius: 16px;
+  cursor: pointer; letter-spacing: 0.06em;
+  transition: opacity 0.15s;
+}
+.edit-add-btn:hover { opacity: 0.85; }
+
+/* Poem card in edit mode */
+.edit-card {
+  background: var(--edit-panel);
+  border: 0.5px solid var(--edit-border);
+  border-radius: 8px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 10px;
+  display: flex; align-items: flex-start;
+  gap: 12px;
+}
+.edit-card-info { flex: 1; min-width: 0; }
+.edit-card-title {
+  font-size: 0.9rem; color: var(--edit-text);
+  margin-bottom: 3px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.edit-card-poet {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem; color: var(--edit-gold);
+  letter-spacing: 0.1em;
+}
+.edit-card-body-preview {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem; color: #7a6a50;
+  margin-top: 4px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.edit-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.ecard-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem;
+  background: none; border: 0.5px solid var(--edit-border);
+  color: var(--edit-text); padding: 5px 10px;
+  border-radius: 12px; cursor: pointer;
+  transition: all 0.15s;
+}
+.ecard-btn.del { color: #c06060; border-color: #5a3030; }
+.ecard-btn:hover { background: var(--edit-border); }
+.ecard-btn.del:hover { background: #3a2020; }
+
+/* Section group in edit */
+.edit-section-group { margin-bottom: 2.5rem; }
+.edit-section-group-label {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.7rem; color: #7a6a50;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-bottom: 0.8rem; padding-bottom: 0.4rem;
+  border-bottom: 0.5px solid var(--edit-border);
+}
+
+/* ── MODAL ── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal-backdrop.hidden { display: none; }
+.modal-box {
+  background: var(--edit-panel);
+  border: 0.5px solid var(--edit-border);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%; max-width: 520px;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-title {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.78rem; color: var(--edit-gold);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+.form-group { margin-bottom: 1.2rem; }
+.form-label {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.68rem; color: #7a6a50;
+  letter-spacing: 0.1em; display: block;
+  margin-bottom: 0.4rem;
+}
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  background: var(--edit-bg);
+  border: 0.5px solid var(--edit-border);
+  color: var(--edit-text);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  border-color: var(--edit-gold);
+}
+.form-textarea { resize: vertical; min-height: 180px; line-height: 1.9; }
+.form-select option { background: var(--edit-bg); }
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+.modal-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.75rem; padding: 8px 20px;
+  border-radius: 16px; cursor: pointer;
+  letter-spacing: 0.06em; transition: all 0.15s;
+}
+.modal-btn.cancel {
+  background: none; border: 0.5px solid var(--edit-border);
+  color: #7a6a50;
+}
+.modal-btn.confirm {
+  background: var(--edit-gold); border: none;
+  color: var(--edit-bg);
+}
+.modal-btn:hover { opacity: 0.85; }
+
+/* Password modal */
+#pw-modal .modal-box { background: var(--cream2); border-color: var(--border); }
+#pw-modal .modal-title { color: var(--ink-mid); }
+#pw-modal .form-input {
+  background: var(--cream); border-color: var(--border);
+  color: var(--ink); font-family: 'Noto Sans KR', sans-serif;
+}
+#pw-modal .modal-btn.confirm { background: var(--ink); color: var(--cream); }
+#pw-modal .modal-btn.cancel { color: var(--ink-lite); border-color: var(--border); }
+.pw-error {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.72rem; color: #c06060;
+  margin-top: 0.5rem; display: none;
+}
+.pw-error.show { display: block; }
+
+/* Firebase notice */
+.firebase-notice {
+  background: var(--edit-panel);
+  border: 0.5px solid var(--edit-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.75rem;
+  color: #7a6a50;
+  line-height: 1.8;
+}
+.firebase-notice strong { color: var(--edit-gold); }
+.firebase-notice code {
+  background: var(--edit-bg);
+  border: 0.5px solid var(--edit-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 0.72rem;
+  color: #a09070;
+}
+
+/* swipe hint */
+.swipe-hint {
+  text-align: center;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.65rem; color: var(--ink-lite);
+  letter-spacing: 0.12em;
+  padding: 1rem;
+  opacity: 0.6;
+}
+
+/* END PAGE */
+.end-page {
+  min-height: 60vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 4rem 2rem;
+}
+.end-ornament { font-size: 1.5rem; color: var(--gold); margin-bottom: 1.5rem; }
+.end-title { font-size: 1.4rem; font-weight: 300; color: var(--ink-mid); margin-bottom: 0.5rem; }
+.end-sub {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.7rem; color: var(--ink-lite);
+  letter-spacing: 0.15em;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .cover-main-title { font-size: 2rem; }
+  .poem-entry { padding: 3.5rem 1.5rem 3rem; }
+  .poem-entry-title { font-size: 1.2rem; }
+  .poem-entry-body { font-size: 0.88rem; }
+  .modal-box { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="load-title">우리가 남긴 말들</div>
+  <div class="load-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- PAGE TURN OVERLAY -->
+<div id="page-turn-overlay">
+  <div class="flip-sheet" id="flip-sheet"></div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="tb-title">우리가 남긴 말들</div>
+  <button class="tb-btn" id="toc-btn" onclick="showToc()">차례</button>
+  <button class="tb-btn" id="read-btn" onclick="showBook()">읽기</button>
+  <button class="tb-btn" id="edit-btn" onclick="tryEditMode()">편집</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- COVER -->
+  <div id="cover">
+    <div class="cover-ornament">✦ ✦ ✦</div>
+    <div class="cover-main-title" id="cover-title">우리가 남긴 말들</div>
+    <div class="cover-poets" id="cover-poets-list">시인 데이터 불러오는 중...</div>
+    <div class="cover-year">2024</div>
+    <button class="cover-start-btn" onclick="showToc()">차례 보기</button>
+  </div>
+
+  <!-- TOC -->
+  <div id="toc-view">
+    <div class="toc-header">차 례</div>
+    <div id="toc-body"></div>
+  </div>
+
+  <!-- BOOK -->
+  <div id="book-view">
+    <div id="book-body"></div>
+    <div class="end-page">
+      <div class="end-ornament">✦</div>
+      <div class="end-title">우리가 남긴 말들</div>
+      <div class="end-sub">끝</div>
+    </div>
+    <div class="swipe-hint">← 스와이프하여 이동 →</div>
+  </div>
+
+  <!-- EDIT PANEL -->
+  <div id="edit-panel">
+    <div class="firebase-notice" id="firebase-notice">
+      <strong>Firebase 연결 설정</strong><br>
+      하단 스크립트의 <code>firebaseConfig</code>를 본인 프로젝트 설정으로 교체하세요.<br>
+      Firestore 컬렉션: <code>poems</code> · 규칙: 읽기 허용, 쓰기는 인증 후<br>
+      편집 비밀번호는 스크립트 하단 <code>EDIT_PASSWORD</code>에서 변경하세요.
+    </div>
+    <div class="edit-section-header">
+      <div class="edit-section-title">시 관리</div>
+      <button class="edit-add-btn" onclick="openAddModal()">+ 시 추가</button>
+    </div>
+    <div id="edit-body"></div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div id="bottom-nav">
+  <button class="bnav-btn" id="prev-btn" onclick="prevSection()">◂ 이전</button>
+  <span id="page-indicator"></span>
+  <button class="bnav-btn" id="next-btn" onclick="nextSection()">다음 ▸</button>
+</div>
+
+<!-- PASSWORD MODAL -->
+<div class="modal-backdrop hidden" id="pw-modal">
+  <div class="modal-box">
+    <div class="modal-title">편집 모드</div>
+    <div class="form-group">
+      <label class="form-label">비밀번호</label>
+      <input type="password" class="form-input" id="pw-input" placeholder="••••••••">
+      <div class="pw-error" id="pw-error">비밀번호가 맞지 않아요</div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closePwModal()">취소</button>
+      <button class="modal-btn confirm" onclick="checkPassword()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- POEM FORM MODAL -->
+<div class="modal-backdrop hidden" id="poem-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-mode-title">시 추가</div>
+    <div class="form-group">
+      <label class="form-label">시인 이름</label>
+      <input type="text" class="form-input" id="f-poet" placeholder="홍길동">
+    </div>
+    <div class="form-group">
+      <label class="form-label">시 제목</label>
+      <input type="text" class="form-input" id="f-title" placeholder="봄의 기억">
+    </div>
+    <div class="form-group">
+      <label class="form-label">시 본문 (줄바꿈 그대로 입력)</label>
+      <textarea class="form-textarea" id="f-body" placeholder="시를 입력하세요..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">섹션 (시인 그룹 — 비워두면 시인 이름으로 자동)</label>
+      <input type="text" class="form-input" id="f-section" placeholder="예: 김하늘">
+    </div>
+    <div class="form-group">
+      <label class="form-label">정렬 순서 (낮을수록 앞에 배치)</label>
+      <input type="number" class="form-input" id="f-order" placeholder="0" value="0">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">취소</button>
+      <button class="modal-btn confirm" id="modal-confirm-btn" onclick="savePoem()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-backdrop hidden" id="del-modal">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-title">시 삭제</div>
+    <p style="font-family:'Noto Sans KR',sans-serif;font-size:0.82rem;color:var(--edit-text);margin-bottom:1.5rem;line-height:1.8;">
+      "<span id="del-poem-title"></span>"을 삭제할까요?<br>
+      <span style="color:#7a6a50;font-size:0.72rem;">이 작업은 되돌릴 수 없어요.</span>
+    </p>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeDelModal()">취소</button>
+      <button class="modal-btn confirm" style="background:#c06060;" onclick="confirmDelete()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════
+   FIREBASE CONFIG — 여기를 수정하세요
+   ══════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+
+/* 편집 비밀번호 */
+const EDIT_PASSWORD = "poem2024";
+
+/* ══════════════════════════════════
+   FIREBASE INIT
+   ══════════════════════════════════ */
+let db = null;
+let firebaseReady = false;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  firebaseReady = true;
+} catch(e) {
+  console.warn("Firebase 미연결 — 샘플 데이터로 실행됩니다.", e);
+}
+
+/* ══════════════════════════════════
+   SAMPLE DATA (Firebase 미연결시)
+   ══════════════════════════════════ */
+const SAMPLE_POEMS = [
+  { id:'s1', title:'봄의 기억', poet:'김하늘', section:'김하늘', order:0,
+    body:`봄이 오면 나는 늘\n창문 하나를 더 열어두었다\n\n바람이 커튼을 밀어내고\n그 틈으로 햇빛이 들어와\n방 안 가득 쌓인 먼지들을\n하나씩 들어 올리던 날\n\n너는 그 먼지들 사이에 있었다` },
+  { id:'s2', title:'연필로 쓴 지도', poet:'김하늘', section:'김하늘', order:1,
+    body:`지우개로 지운 자리에\n더 진한 연필 자국이 남는다\n\n길을 잃었다고 생각했는데\n사실은 새 길을 덧그리고 있었다\n\n우리가 걸어온 자리가\n지도가 된다` },
+  { id:'s3', title:'물이 되는 법', poet:'이서준', section:'이서준', order:0,
+    body:`돌을 만지면 차갑고\n물을 만지면 차갑다\n\n다른 건 물이 손에 남지 않는다는 것\n\n나는 오래 물이 되고 싶었다\n아무것도 붙들지 않고\n그냥 흘러가고 싶었다` },
+  { id:'s4', title:'소금 같은 것', poet:'이서준', section:'이서준', order:1,
+    body:`눈물이 짜다는 게\n어릴 때는 신기했다\n\n나중에 알았다\n몸이 기억을 녹여내면\n반드시 짠 것이 남는다는 걸\n\n슬픔은 소금이다` },
+  { id:'s5', title:'밤의 문장', poet:'박지유', section:'박지유', order:0,
+    body:`밤에만 쓰는 문장이 있다\n낮에는 부끄러워서\n쓸 수 없는 것들\n\n사랑한다는 말보다\n곁에 있어줘서 고맙다는 말이\n더 솔직한 밤` },
+  { id:'s6', title:'목련이 지는 날', poet:'오하린', section:'오하린', order:0,
+    body:`목련이 지는 건 지저분하다\n갈색으로 무너지며\n발에 밟힌다\n\n그래도 매년 기다린다\n그 짧은 흰 시간을\n\n아름다운 것들은\n늘 뒷처리가 어렵다` },
+];
+
+/* ══════════════════════════════════
+   STATE
+   ══════════════════════════════════ */
+let poems = [];
+let sections = [];
+let currentView = 'cover';
+let currentSection = 0;
+let editMode = false;
+let editingId = null;
+let deletingId = null;
+
+/* scroll sections for book view */
+let sectionAnchors = [];
+
+/* ══════════════════════════════════
+   LOAD DATA
+   ══════════════════════════════════ */
+async function loadPoems() {
+  if (firebaseReady) {
+    try {
+      const snap = await db.collection('poems').orderBy('order').get();
+      if (snap.empty) {
+        poems = SAMPLE_POEMS;
+      } else {
+        poems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+    } catch(e) {
+      console.warn("Firestore 읽기 실패 — 샘플 데이터 사용:", e);
+      poems = SAMPLE_POEMS;
+    }
+  } else {
+    poems = SAMPLE_POEMS;
+  }
+
+  buildSections();
+  renderCover();
+  renderToc();
+  renderBook();
+  renderEdit();
+  hideLoading();
+}
+
+function buildSections() {
+  const map = {};
+  poems.forEach(p => {
+    const s = p.section || p.poet;
+    if (!map[s]) map[s] = [];
+    map[s].push(p);
+  });
+  sections = Object.entries(map).map(([name, ps]) => ({ name, poems: ps }));
+}
+
+/* ══════════════════════════════════
+   RENDER
+   ══════════════════════════════════ */
+function renderCover() {
+  const poets = [...new Set(poems.map(p => p.poet))];
+  document.getElementById('cover-poets-list').textContent = poets.join(' · ');
+}
+
+function renderToc() {
+  const body = document.getElementById('toc-body');
+  let html = '';
+  sections.forEach((sec, si) => {
+    html += `<div class="toc-section-label">${sec.name}</div>`;
+    sec.poems.forEach((p, pi) => {
+      html += `<div class="toc-item" onclick="jumpToPoem('${sec.name}',${pi})">
+        <span class="toc-item-title">${p.title}</span>
+        <span class="toc-item-poet">${p.poet}</span>
+      </div>`;
+    });
+  });
+  body.innerHTML = html;
+}
+
+function renderBook() {
+  const body = document.getElementById('book-body');
+  let html = '';
+  sections.forEach(sec => {
+    html += `<div class="section-page" data-section="${sec.name}">
+      <div class="section-page-eyebrow">시인</div>
+      <div class="section-page-name">${sec.name}</div>
+    </div>`;
+    sec.poems.forEach(p => {
+      html += `<div class="poem-entry" data-section="${sec.name}">
+        <div class="poem-entry-poet">${p.poet}</div>
+        <div class="poem-entry-title">${p.title}</div>
+        <div class="poem-entry-divider"></div>
+        <div class="poem-entry-body">${p.body}</div>
+      </div>`;
+    });
+  });
+  body.innerHTML = html;
+}
+
+function renderEdit() {
+  const body = document.getElementById('edit-body');
+  if (!poems.length) {
+    body.innerHTML = `<div style="text-align:center;padding:3rem;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#7a6a50;">
+      아직 등록된 시가 없어요. '+ 시 추가'로 첫 번째 시를 올려보세요.
+    </div>`;
+    return;
+  }
+  let html = '';
+  sections.forEach(sec => {
+    html += `<div class="edit-section-group">
+      <div class="edit-section-group-label">${sec.name}</div>`;
+    sec.poems.forEach(p => {
+      html += `<div class="edit-card">
+        <div class="edit-card-info">
+          <div class="edit-card-title">${p.title}</div>
+          <div class="edit-card-poet">${p.poet}</div>
+          <div class="edit-card-body-preview">${p.body.replace(/\n/g,' ')}</div>
+        </div>
+        <div class="edit-card-actions">
+          <button class="ecard-btn" onclick="openEditModal('${p.id}')">수정</button>
+          <button class="ecard-btn del" onclick="openDelModal('${p.id}','${p.title.replace(/'/g,"\\'")}')">삭제</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  body.innerHTML = html;
+}
+
+/* ══════════════════════════════════
+   VIEW SWITCHING
+   ══════════════════════════════════ */
+function showView(name) {
+  document.getElementById('cover').style.display = 'none';
+  document.getElementById('toc-view').classList.remove('active');
+  document.getElementById('book-view').classList.remove('active');
+  document.getElementById('edit-panel').classList.remove('active');
+  document.getElementById('bottom-nav').classList.remove('active');
+  document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
+
+  if (name === 'cover') {
+    document.getElementById('cover').style.display = 'flex';
+  } else if (name === 'toc') {
+    document.getElementById('toc-view').classList.add('active');
+    document.getElementById('toc-btn').classList.add('active');
+  } else if (name === 'book') {
+    document.getElementById('book-view').classList.add('active');
+    document.getElementById('read-btn').classList.add('active');
+    document.getElementById('bottom-nav').classList.add('active');
+    updateNav();
+  } else if (name === 'edit') {
+    document.getElementById('edit-panel').classList.add('active');
+    document.getElementById('edit-btn').classList.add('active');
+  }
+
+  currentView = name;
+  window.scrollTo({ top: 0 });
+}
+
+function showToc() { showView('toc'); }
+function showBook() { showView('book'); updateNav(); }
+
+function showCover() {
+  exitEditMode();
+  showView('cover');
+}
+
+/* ══════════════════════════════════
+   SECTION NAVIGATION (BOOK)
+   ══════════════════════════════════ */
+function getSectionEls() {
+  return [...document.querySelectorAll('[data-section]')];
+}
+
+function getCurrentSectionIndex() {
+  const els = getSectionEls();
+  const scrollY = window.scrollY + 100;
+  let idx = 0;
+  els.forEach((el, i) => {
+    if (el.offsetTop <= scrollY) idx = i;
+  });
+  return idx;
+}
+
+function updateNav() {
+  const els = getSectionEls();
+  const idx = getCurrentSectionIndex();
+  document.getElementById('prev-btn').disabled = idx <= 0;
+  document.getElementById('next-btn').disabled = idx >= els.length - 1;
+  const secEls = [...document.querySelectorAll('.section-page')];
+  let secIdx = 0;
+  secEls.forEach((el, i) => {
+    if (el.offsetTop <= window.scrollY + 150) secIdx = i;
+  });
+  const secName = sections[secIdx] ? sections[secIdx].name : '';
+  document.getElementById('page-indicator').textContent = secName;
+}
+
+function prevSection() {
+  const els = getSectionEls();
+  const idx = getCurrentSectionIndex();
+  if (idx > 0) scrollToEl(els[idx - 1]);
+}
+
+function nextSection() {
+  const els = getSectionEls();
+  const idx = getCurrentSectionIndex();
+  if (idx < els.length - 1) scrollToEl(els[idx + 1]);
+}
+
+function scrollToEl(el) {
+  doFlip(() => {
+    window.scrollTo({ top: el.offsetTop - 60, behavior: 'smooth' });
+  });
+}
+
+function jumpToPoem(secName, poemIdx) {
+  showView('book');
+  setTimeout(() => {
+    const allEls = [...document.querySelectorAll('[data-section]')];
+    const secPages = allEls.filter(el => el.classList.contains('section-page'));
+    const secIdx = sections.findIndex(s => s.name === secName);
+    if (secIdx < 0) return;
+    let target = secPages[secIdx];
+    const poemEls = [...document.querySelectorAll('.poem-entry')].filter(
+      el => el.dataset.section === secName
+    );
+    if (poemEls[poemIdx]) target = poemEls[poemIdx];
+    if (target) window.scrollTo({ top: target.offsetTop - 60, behavior: 'smooth' });
+    updateNav();
+  }, 100);
+}
+
+/* ══════════════════════════════════
+   PAGE FLIP ANIMATION
+   ══════════════════════════════════ */
+function doFlip(cb) {
+  const sheet = document.getElementById('flip-sheet');
+  sheet.style.transition = 'none';
+  sheet.style.transform = 'rotateY(0deg)';
+  sheet.style.opacity = '0.6';
+  requestAnimationFrame(() => {
+    sheet.style.transition = 'transform 0.4s cubic-bezier(0.645,0.045,0.355,1)';
+    sheet.style.transform = 'rotateY(-90deg)';
+    setTimeout(() => {
+      cb && cb();
+      sheet.style.transition = 'none';
+      sheet.style.opacity = '0';
+    }, 420);
+  });
+}
+
+/* ══════════════════════════════════
+   SWIPE
+   ══════════════════════════════════ */
+let touchStartX = 0, touchStartY = 0;
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (currentView !== 'book') return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+    if (dx < 0) nextSection();
+    else prevSection();
+  }
+}, { passive: true });
+
+window.addEventListener('scroll', () => {
+  if (currentView === 'book') updateNav();
+}, { passive: true });
+
+/* ══════════════════════════════════
+   EDIT MODE
+   ══════════════════════════════════ */
+function tryEditMode() {
+  if (editMode) {
+    exitEditMode();
+    return;
+  }
+  document.getElementById('pw-error').classList.remove('show');
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('pw-input').focus(), 100);
+}
+
+function closePwModal() {
+  document.getElementById('pw-modal').classList.add('hidden');
+}
+
+function checkPassword() {
+  const val = document.getElementById('pw-input').value;
+  if (val === EDIT_PASSWORD) {
+    closePwModal();
+    enterEditMode();
+  } else {
+    document.getElementById('pw-error').classList.add('show');
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPassword();
+});
+
+function enterEditMode() {
+  editMode = true;
+  document.body.classList.add('edit-mode');
+  showView('edit');
+}
+
+function exitEditMode() {
+  editMode = false;
+  document.body.classList.remove('edit-mode');
+}
+
+/* ══════════════════════════════════
+   POEM MODAL
+   ══════════════════════════════════ */
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-mode-title').textContent = '시 추가';
+  document.getElementById('modal-confirm-btn').textContent = '추가';
+  document.getElementById('f-poet').value = '';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-body').value = '';
+  document.getElementById('f-section').value = '';
+  document.getElementById('f-order').value = poems.length;
+  document.getElementById('poem-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('f-poet').focus(), 100);
+}
+
+function openEditModal(id) {
+  const poem = poems.find(p => p.id === id);
+  if (!poem) return;
+  editingId = id;
+  document.getElementById('modal-mode-title').textContent = '시 수정';
+  document.getElementById('modal-confirm-btn').textContent = '저장';
+  document.getElementById('f-poet').value = poem.poet;
+  document.getElementById('f-title').value = poem.title;
+  document.getElementById('f-body').value = poem.body;
+  document.getElementById('f-section').value = poem.section || '';
+  document.getElementById('f-order').value = poem.order ?? 0;
+  document.getElementById('poem-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('poem-modal').classList.add('hidden');
+  editingId = null;
+}
+
+async function savePoem() {
+  const poet  = document.getElementById('f-poet').value.trim();
+  const title = document.getElementById('f-title').value.trim();
+  const body  = document.getElementById('f-body').value;
+  const section = document.getElementById('f-section').value.trim() || poet;
+  const order = parseInt(document.getElementById('f-order').value) || 0;
+
+  if (!poet || !title || !body) {
+    alert('시인, 제목, 본문은 필수입니다.');
+    return;
+  }
+
+  const data = { poet, title, body, section, order };
+
+  if (firebaseReady) {
+    try {
+      if (editingId) {
+        await db.collection('poems').doc(editingId).update(data);
+      } else {
+        await db.collection('poems').add(data);
+      }
+      closeModal();
+      await loadPoems();
+      renderEdit();
+      return;
+    } catch(e) {
+      console.error("Firestore 저장 실패:", e);
+      alert("Firebase 저장에 실패했어요. 설정을 확인해주세요.");
+      return;
+    }
+  }
+
+  /* Local only (demo mode) */
+  if (editingId) {
+    const idx = poems.findIndex(p => p.id === editingId);
+    if (idx >= 0) poems[idx] = { ...poems[idx], ...data };
+  } else {
+    poems.push({ id: 'local_' + Date.now(), ...data });
+  }
+  buildSections();
+  renderToc(); renderBook(); renderEdit();
+  closeModal();
+}
+
+/* ══════════════════════════════════
+   DELETE
+   ══════════════════════════════════ */
+function openDelModal(id, title) {
+  deletingId = id;
+  document.getElementById('del-poem-title').textContent = title;
+  document.getElementById('del-modal').classList.remove('hidden');
+}
+
+function closeDelModal() {
+  document.getElementById('del-modal').classList.add('hidden');
+  deletingId = null;
+}
+
+async function confirmDelete() {
+  if (!deletingId) return;
+  if (firebaseReady) {
+    try {
+      await db.collection('poems').doc(deletingId).delete();
+      closeDelModal();
+      await loadPoems();
+      renderEdit();
+      return;
+    } catch(e) {
+      alert("삭제 실패. Firebase 설정을 확인해주세요.");
+      return;
+    }
+  }
+  /* Local demo */
+  poems = poems.filter(p => p.id !== deletingId);
+  buildSections(); renderToc(); renderBook(); renderEdit();
+  closeDelModal();
+}
+
+/* ══════════════════════════════════
+   LOADING
+   ══════════════════════════════════ */
+function hideLoading() {
+  const el = document.getElementById('loading');
+  el.classList.add('hidden');
+  setTimeout(() => el.style.display = 'none', 700);
+}
+
+/* ══════════════════════════════════
+   KEYBOARD
+   ══════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (currentView !== 'book') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextSection();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   prevSection();
+});
+
+/* ══════════════════════════════════
+   INIT
+   ══════════════════════════════════ */
+document.getElementById('cover').style.display = 'flex';
+loadPoems();
+</script>
+</body>
+</html>
