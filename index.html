@@ -154,6 +154,28 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 .end-title{font-size:1.4rem;font-weight:300;color:var(--ink-mid);margin-bottom:0.5rem;}
 .end-sub{font-family:'Noto Sans KR',sans-serif;font-size:0.7rem;color:var(--ink-lite);letter-spacing:0.15em;}
 .swipe-hint{text-align:center;font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.12em;padding:1rem;opacity:0.6;}
+/* 보기 전환 버튼 */
+.view-toggle{display:flex;gap:6px;margin-left:auto;}
+.view-toggle-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.68rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:4px 10px;border-radius:14px;cursor:pointer;transition:all 0.15s;}
+.view-toggle-btn.active{background:var(--ink);color:var(--cream);border-color:var(--ink);}
+/* 페이지 뷰 */
+#page-view{display:none;width:100%;height:calc(100vh - 106px);position:relative;overflow:hidden;}
+#page-view.active{display:block;}
+.page-card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;text-align:center;background:var(--cream2);transition:transform 0.45s cubic-bezier(0.645,0.045,0.355,1),opacity 0.35s;}
+.page-card.hidden{display:none;}
+.page-card.slide-left{transform:translateX(-100%);opacity:0;}
+.page-card.slide-right{transform:translateX(100%);opacity:0;}
+.page-card-type{font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;color:var(--gold);letter-spacing:0.22em;text-transform:uppercase;margin-bottom:0.8rem;}
+.page-card-title{font-size:1.6rem;font-weight:300;color:var(--ink);line-height:1.3;margin-bottom:0.5rem;}
+.page-card-poet{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--ink-lite);letter-spacing:0.12em;margin-bottom:1.6rem;}
+.page-card-divider{width:24px;height:0.5px;background:var(--spine);margin:0 auto 1.6rem;}
+.page-card-body{font-size:0.92rem;color:var(--ink-mid);line-height:2.2;white-space:pre-line;font-weight:300;max-width:520px;}
+.page-card-intro{font-size:0.88rem;color:var(--ink-lite);line-height:2.0;white-space:pre-line;font-weight:300;font-style:italic;max-width:460px;}
+.page-card-quarter-num{font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;color:var(--gold);letter-spacing:0.22em;margin-bottom:0.6rem;}
+.page-card-quarter-title{font-size:2rem;font-weight:300;color:var(--ink);margin-bottom:1rem;}
+.page-card-round-num{font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;color:var(--spine);letter-spacing:0.2em;margin-bottom:0.6rem;}
+.page-card-round-title{font-size:1.4rem;font-weight:300;color:var(--ink-mid);}
+.page-counter{font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.1em;}
 .empty-state{text-align:center;padding:3rem 1rem;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#7a6a50;line-height:2;}
 .filter-bar{display:flex;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap;}
 .filter-select{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--edit-text);background:var(--edit-bg);border:0.5px solid var(--edit-border);border-radius:16px;padding:6px 12px;outline:none;cursor:pointer;transition:border-color 0.15s;}
@@ -189,6 +211,10 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   <div class="tb-title">글빛을 모아 담다 시화 詩和</div>
   <button class="tb-btn" id="toc-btn" onclick="showToc()">차례</button>
   <button class="tb-btn" id="read-btn" onclick="showBook()">읽기</button>
+  <div class="view-toggle" id="view-toggle" style="display:none;">
+    <button class="view-toggle-btn active" id="vt-scroll" onclick="setViewMode('scroll')" title="스크롤">≡</button>
+    <button class="view-toggle-btn" id="vt-page" onclick="setViewMode('page')" title="페이지">▭</button>
+  </div>
   <button class="tb-btn" id="edit-btn" onclick="tryEditMode()">편집</button>
 </div>
 
@@ -197,7 +223,7 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
     <div class="cover-ornament">✦ ✦ ✦</div>
     <div class="cover-main-title">글빛을 모아 담다 시화 詩和</div>
     <div class="cover-poets" id="cover-poets-list">불러오는 중...</div>
-    <div class="cover-year">2026</div>
+    <div class="cover-year">2024</div>
     <button class="cover-start-btn" onclick="showToc()">차례 보기</button>
   </div>
 
@@ -214,6 +240,10 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
       <div class="end-sub">끝</div>
     </div>
     <div class="swipe-hint">← 스와이프 또는 방향키로 이동 →</div>
+  </div>
+
+  <div id="page-view">
+    <div id="page-card-container"></div>
   </div>
 
   <div id="edit-panel">
@@ -567,15 +597,45 @@ function renderToc() {
 /* ═══════════════════════════
    RENDER BOOK
    ═══════════════════════════ */
+/* 페이지 데이터 배열 (page-view용) */
+let pageItems = [];
+
+function buildPageItems() {
+  pageItems = [];
+  quarters.forEach((q, qi) => {
+    const qRounds = getRoundsOf(q.id);
+    const fPoems  = getFreeOf(q.id);
+    const hasContent = qRounds.some(r=>getPoemsOf(r.id).length) || fPoems.length;
+    if (!hasContent) return;
+    pageItems.push({ type:'quarter', q, qi });
+    if (q.intro && q.intro.trim()) pageItems.push({ type:'intro', q });
+    qRounds.forEach(r => {
+      const rPoems = getPoemsOf(r.id);
+      if (!rPoems.length) return;
+      pageItems.push({ type:'round', r, q });
+      rPoems.forEach(p => pageItems.push({ type:'poem', p, r }));
+    });
+    if (fPoems.length) {
+      pageItems.push({ type:'free-section', q });
+      fPoems.forEach(p => pageItems.push({ type:'free', p, q }));
+    }
+  });
+}
+
 function renderBook() {
   let html = '';
   quarters.forEach((q, qi) => {
     const qRounds = getRoundsOf(q.id);
-    if (!qRounds.some(r => getPoemsOf(r.id).length)) return;
+    const fPoems  = getFreeOf(q.id);
+    const hasContent = qRounds.some(r=>getPoemsOf(r.id).length) || fPoems.length;
+    if (!hasContent) return;
     html += `<div class="quarter-page" data-type="quarter" data-id="${q.id}">
       <div class="quarter-page-num">${qi+1}분기</div>
       <div class="quarter-page-title">${q.title}</div>
     </div>`;
+    if (q.intro && q.intro.trim()) {
+      html += `<div class="quarter-intro"><div class="quarter-intro-body">${q.intro}</div></div>`;
+    }
     qRounds.forEach(r => {
       const rPoems = getPoemsOf(r.id);
       if (!rPoems.length) return;
@@ -592,9 +652,24 @@ function renderBook() {
         </div>`;
       });
     });
+    if (fPoems.length) {
+      html += `<div class="free-section-page" data-type="free-section" data-id="${q.id}">
+        <div class="free-section-page-label">자유시</div>
+        <div class="free-section-page-title">${q.title}의 자유시</div>
+      </div>`;
+      fPoems.forEach(p => {
+        html += `<div class="poem-entry" data-type="free" data-id="${p.id}" data-quarter="${q.id}">
+          <div class="poem-entry-poet">${p.poet}</div>
+          <div class="poem-entry-title">${p.title}</div>
+          <div class="poem-entry-divider"></div>
+          <div class="poem-entry-body">${p.body}</div>
+        </div>`;
+      });
+    }
   });
   document.getElementById('book-body').innerHTML = html ||
     `<div class="empty-state" style="min-height:60vh;display:flex;align-items:center;justify-content:center;flex-direction:column;">아직 등록된 시가 없어요.</div>`;
+  buildPageItems();
 }
 
 /* ═══════════════════════════
@@ -717,22 +792,126 @@ function renderPoemsEdit() {
 /* ═══════════════════════════
    VIEW
    ═══════════════════════════ */
+let viewMode = 'scroll'; // 'scroll' | 'page'
+let currentPageIdx = 0;
+
+function setViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('vt-scroll').classList.toggle('active', mode==='scroll');
+  document.getElementById('vt-page').classList.toggle('active', mode==='page');
+  if (mode === 'scroll') {
+    document.getElementById('book-view').classList.add('active');
+    document.getElementById('page-view').classList.remove('active');
+    updateNav();
+  } else {
+    document.getElementById('book-view').classList.remove('active');
+    document.getElementById('page-view').classList.add('active');
+    buildPageItems();
+    currentPageIdx = 0;
+    renderPageCard();
+  }
+}
+
 function showView(name) {
   document.getElementById('cover').style.display = 'none';
-  ['toc-view','book-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['toc-view','book-view','page-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('bottom-nav').classList.remove('active');
+  document.getElementById('view-toggle').style.display = 'none';
   document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
 
-  if (name === 'cover')  { document.getElementById('cover').style.display = 'flex'; }
-  else if (name === 'toc')  { document.getElementById('toc-view').classList.add('active'); document.getElementById('toc-btn').classList.add('active'); }
-  else if (name === 'book') { document.getElementById('book-view').classList.add('active'); document.getElementById('read-btn').classList.add('active'); document.getElementById('bottom-nav').classList.add('active'); updateNav(); }
-  else if (name === 'edit') { document.getElementById('edit-panel').classList.add('active'); document.getElementById('edit-btn').classList.add('active'); renderEditAll(); }
+  if (name === 'cover') {
+    document.getElementById('cover').style.display = 'flex';
+  } else if (name === 'toc') {
+    document.getElementById('toc-view').classList.add('active');
+    document.getElementById('toc-btn').classList.add('active');
+  } else if (name === 'book') {
+    document.getElementById('read-btn').classList.add('active');
+    document.getElementById('bottom-nav').classList.add('active');
+    document.getElementById('view-toggle').style.display = 'flex';
+    if (viewMode === 'scroll') {
+      document.getElementById('book-view').classList.add('active');
+      updateNav();
+    } else {
+      document.getElementById('page-view').classList.add('active');
+      buildPageItems();
+      renderPageCard();
+    }
+  } else if (name === 'edit') {
+    document.getElementById('edit-panel').classList.add('active');
+    document.getElementById('edit-btn').classList.add('active');
+    renderEditAll();
+  }
 
   currentView = name;
-  window.scrollTo({ top:0 });
+  if (name !== 'book' || viewMode !== 'page') window.scrollTo({ top:0 });
 }
 function showToc()  { showView('toc'); }
 function showBook() { showView('book'); }
+
+/* ── PAGE VIEW ─────────────────────── */
+function renderPageCard(dir) {
+  const container = document.getElementById('page-card-container');
+  if (!pageItems.length) {
+    container.innerHTML = '<div class="page-card"><div class="page-card-type">아직 등록된 시가 없어요.</div></div>';
+    updateNav(); return;
+  }
+  const item = pageItems[currentPageIdx];
+  let inner = '';
+  if (item.type === 'quarter') {
+    const qi = pageItems.filter((x,i)=>i<=currentPageIdx && x.type==='quarter').length;
+    inner = `<div class="page-card-quarter-num">${qi}분기</div>
+      <div class="page-card-quarter-title">${item.q.title}</div>`;
+  } else if (item.type === 'intro') {
+    inner = `<div class="page-card-type">소개글</div>
+      <div class="page-card-intro">${item.q.intro}</div>`;
+  } else if (item.type === 'round') {
+    inner = `<div class="page-card-round-num">${item.r.num}회차</div>
+      <div class="page-card-round-title">${item.r.title}</div>`;
+  } else if (item.type === 'poem' || item.type === 'free') {
+    const label = item.type==='free' ? '자유시' : (item.r ? item.r.title : '');
+    inner = `<div class="page-card-type">${label}</div>
+      <div class="page-card-poet">${item.p.poet}</div>
+      <div class="page-card-title">${item.p.title}</div>
+      <div class="page-card-divider"></div>
+      <div class="page-card-body">${item.p.body}</div>`;
+  } else if (item.type === 'free-section') {
+    inner = `<div class="page-card-round-num">자유시</div>
+      <div class="page-card-round-title">${item.q.title}의 자유시</div>`;
+  }
+
+  const slideClass = dir==='left' ? 'slide-left' : dir==='right' ? 'slide-right' : '';
+  container.innerHTML = `<div class="page-card ${slideClass}">${inner}</div>`;
+
+  // 애니메이션 제거
+  if (slideClass) {
+    requestAnimationFrame(() => {
+      const card = container.querySelector('.page-card');
+      if (card) { card.style.transition='none'; card.classList.remove(slideClass); }
+    });
+  }
+  updateNav();
+}
+
+function prevSection() {
+  if (viewMode === 'page') {
+    if (currentPageIdx <= 0) return;
+    currentPageIdx--;
+    renderPageCard('right');
+  } else {
+    const els = getNavEls(), idx = getCurrentIdx();
+    if (idx > 0) doFlip(() => scrollToEl(els[idx-1]));
+  }
+}
+function nextSection() {
+  if (viewMode === 'page') {
+    if (currentPageIdx >= pageItems.length-1) return;
+    currentPageIdx++;
+    renderPageCard('left');
+  } else {
+    const els = getNavEls(), idx = getCurrentIdx();
+    if (idx < els.length-1) doFlip(() => scrollToEl(els[idx+1]));
+  }
+}
 
 /* EDIT TABS */
 function switchTab(name) {
@@ -756,6 +935,15 @@ function getCurrentIdx() {
   return idx;
 }
 function updateNav() {
+  if (viewMode === 'page') {
+    document.getElementById('prev-btn').disabled = currentPageIdx <= 0;
+    document.getElementById('next-btn').disabled = currentPageIdx >= pageItems.length - 1;
+    const indicator = document.getElementById('page-indicator');
+    if (pageItems.length) {
+      indicator.innerHTML = `<span class="page-counter">${currentPageIdx+1} / ${pageItems.length}</span>`;
+    }
+    return;
+  }
   const els = getNavEls(), idx = getCurrentIdx();
   document.getElementById('prev-btn').disabled = idx <= 0;
   document.getElementById('next-btn').disabled = idx >= els.length - 1;
@@ -808,8 +996,13 @@ function jumpToFree(freeId) {
 function jumpToFree(freeId) {
   showView('book');
   setTimeout(() => {
-    const el = document.querySelector('[data-type="free"][data-id="' + freeId + '"]');
-    if (el) { scrollToEl(el); updateNav(); }
+    if (viewMode === 'page') {
+      const idx = pageItems.findIndex(item => item.type==='free' && item.p && item.p.id===freeId);
+      if (idx>=0) { currentPageIdx=idx; renderPageCard(); }
+    } else {
+      const el = document.querySelector('[data-type="free"][data-id="'+freeId+'"]');
+      if (el) { scrollToEl(el); updateNav(); }
+    }
   }, 100);
 }
 window.addEventListener('scroll', () => { if (currentView==='book') updateNav(); }, { passive:true });
@@ -820,7 +1013,11 @@ document.addEventListener('touchstart', e => { tx=e.touches[0].clientX; ty=e.tou
 document.addEventListener('touchend', e => {
   if (currentView!=='book') return;
   const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
-  if (Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>45) { dx<0?nextSection():prevSection(); }
+  if (viewMode==='page') {
+    if (Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>35) { dx<0?nextSection():prevSection(); }
+  } else {
+    if (Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>45) { dx<0?nextSection():prevSection(); }
+  }
 }, { passive:true });
 
 /* KEYBOARD */
