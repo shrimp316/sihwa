@@ -518,18 +518,20 @@ const getRound     = id  => rounds.find(r => r.id === id);
 async function loadAll() {
   if (firebaseReady) {
     try {
-      const [qs, rs, ps, fs] = await Promise.all([
+      const [qs, rs, ps] = await Promise.all([
         db.collection('quarters').orderBy('order').get(),
         db.collection('rounds').orderBy('order').get(),
         db.collection('poems').orderBy('order').get(),
-        db.collection('freePoems').orderBy('order').get(),
       ]);
-      quarters  = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-      rounds    = rs.docs.map(d => ({ id:d.id, ...d.data() }));
-      poems     = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      quarters = qs.docs.map(d => ({ id:d.id, ...d.data() }));
+      rounds   = rs.docs.map(d => ({ id:d.id, ...d.data() }));
+      poems    = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      if (!quarters.length) { useSample(); }
+    } catch(e) { console.warn('Firestore 기본 읽기 실패', e); useSample(); }
+    try {
+      const fs = await db.collection('freePoems').orderBy('order').get();
       freePoems = fs.docs.map(d => ({ id:d.id, ...d.data() }));
-      if (!quarters.length) useSample();
-    } catch(e) { console.warn("Firestore 읽기 실패", e); useSample(); }
+    } catch(e) { console.warn('freePoems 없음 — 빈 배열로 진행'); freePoems = []; }
   } else { useSample(); }
   renderAll();
   hideLoading();
@@ -1294,7 +1296,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
-
-
-
