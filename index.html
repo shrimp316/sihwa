@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>글빛을 모아 담다 시화 詩和</title>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -518,20 +520,18 @@ const getRound     = id  => rounds.find(r => r.id === id);
 async function loadAll() {
   if (firebaseReady) {
     try {
-      const [qs, rs, ps] = await Promise.all([
+      const [qs, rs, ps, fs] = await Promise.all([
         db.collection('quarters').orderBy('order').get(),
         db.collection('rounds').orderBy('order').get(),
         db.collection('poems').orderBy('order').get(),
+        db.collection('freePoems').orderBy('order').get(),
       ]);
-      quarters = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-      rounds   = rs.docs.map(d => ({ id:d.id, ...d.data() }));
-      poems    = ps.docs.map(d => ({ id:d.id, ...d.data() }));
-      if (!quarters.length) { useSample(); }
-    } catch(e) { console.warn('Firestore 기본 읽기 실패', e); useSample(); }
-    try {
-      const fs = await db.collection('freePoems').orderBy('order').get();
+      quarters  = qs.docs.map(d => ({ id:d.id, ...d.data() }));
+      rounds    = rs.docs.map(d => ({ id:d.id, ...d.data() }));
+      poems     = ps.docs.map(d => ({ id:d.id, ...d.data() }));
       freePoems = fs.docs.map(d => ({ id:d.id, ...d.data() }));
-    } catch(e) { console.warn('freePoems 없음 — 빈 배열로 진행'); freePoems = []; }
+      if (!quarters.length) useSample();
+    } catch(e) { console.warn("Firestore 읽기 실패", e); useSample(); }
   } else { useSample(); }
   renderAll();
   hideLoading();
