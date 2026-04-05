@@ -465,6 +465,17 @@ try {
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
 
 /* ═══════════════════════════
+   SNAPSHOT (빠른 초기 렌더용)
+   ═══════════════════════════ */
+const SNAPSHOT_KEY = 'sihwa_snapshot';
+function loadSnapshot() {
+  try { const r=localStorage.getItem(SNAPSHOT_KEY); return r?JSON.parse(r):null; } catch(e){ return null; }
+}
+function saveSnapshot() {
+  try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({quarters,rounds,poems,freePoems,ts:Date.now()})); } catch(e){}
+}
+
+/* ═══════════════════════════
    SAMPLE DATA
    ═══════════════════════════ */
 const SAMPLE = {
@@ -517,6 +528,18 @@ const getRound = id => rounds.find(r => r.id === id);
    LOAD
    ═══════════════════════════ */
 async function loadAll() {
+  // 1단계: 스냅샷 있으면 즉시 렌더 (Firebase 기다리지 않고 바로 표시)
+  const snap = loadSnapshot();
+  if (snap && snap.quarters && snap.quarters.length) {
+    quarters  = snap.quarters;
+    rounds    = snap.rounds    || [];
+    poems     = snap.poems     || [];
+    freePoems = snap.freePoems || [];
+    renderAll();
+    hideLoading();
+  }
+
+  // 2단계: Firebase에서 최신 데이터 로드
   if (firebaseReady) {
     try {
       const [qs, rs, ps, fs] = await Promise.all([
@@ -525,15 +548,26 @@ async function loadAll() {
         db.collection('poems').orderBy('order').get(),
         db.collection('freePoems').orderBy('order').get(),
       ]);
-      quarters = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-      rounds = rs.docs.map(d => ({ id:d.id, ...d.data() }));
-      poems = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      quarters  = qs.docs.map(d => ({ id:d.id, ...d.data() }));
+      rounds    = rs.docs.map(d => ({ id:d.id, ...d.data() }));
+      poems     = ps.docs.map(d => ({ id:d.id, ...d.data() }));
       freePoems = fs.docs.map(d => ({ id:d.id, ...d.data() }));
-      if (!quarters.length) useSample();
-    } catch(e) { console.warn("Firestore 읽기 실패", e); useSample(); }
-  } else { useSample(); }
-  renderAll();
-  hideLoading();
+      if (!quarters.length && !snap) useSample();
+      saveSnapshot(); // 최신 데이터 로컬에 저장
+      renderAll();
+    } catch(e) {
+      console.warn('Firestore 읽기 실패', e);
+      if (!snap) useSample();
+    }
+  } else {
+    if (!snap) useSample();
+  }
+
+  // 스냅샷 없었을 때만 여기서 렌더+로딩해제
+  if (!snap || !snap.quarters || !snap.quarters.length) {
+    renderAll();
+    hideLoading();
+  }
 }
 
 function useSample() {
