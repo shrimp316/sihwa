@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>글빛을 모아 담다 시화 詩和</title>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -446,12 +444,12 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
    FIREBASE CONFIG — 여기 수정
    ═══════════════════════════ */
 const firebaseConfig = {
-  apiKey:            "AIzaSyAeyy13dfbzKDCfzKhsrVNnQtOvEwFsLes",
-  authDomain:        "sihwa-eeec9.firebaseapp.com",
-  projectId:         "sihwa-eeec9",
-  storageBucket:     "sihwa-eeec9.firebasestorage.app",
+  apiKey: "AIzaSyAeyy13dfbzKDCfzKhsrVNnQtOvEwFsLes",
+  authDomain: "sihwa-eeec9.firebaseapp.com",
+  projectId: "sihwa-eeec9",
+  storageBucket: "sihwa-eeec9.firebasestorage.app",
   messagingSenderId: "339102864437",
-  appId:             "1:339102864437:web:5590d4ec85f1cba5b90d7c"
+  appId: "1:339102864437:web:5590d4ec85f1cba5b90d7c"
 };
 const EDIT_PASSWORD = "tlghk2026";
 
@@ -462,6 +460,7 @@ let db = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('오프라인 캐시 비활성:', e.code));
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
 
@@ -474,7 +473,7 @@ const SAMPLE = {
     { id:'q2', title:'관계', order:1 },
   ],
   rounds: [
-    { id:'r1', title:'봄',   num:1, quarterId:'q1', order:0 },
+    { id:'r1', title:'봄', num:1, quarterId:'q1', order:0 },
     { id:'r2', title:'여름', num:2, quarterId:'q1', order:1 },
     { id:'r3', title:'처음', num:3, quarterId:'q2', order:0 },
     { id:'r4', title:'이별', num:4, quarterId:'q2', order:1 },
@@ -508,11 +507,11 @@ let deletingType = null, deletingId = null;
 /* ═══════════════════════════
    HELPERS
    ═══════════════════════════ */
-const getRoundsOf  = qid => rounds.filter(r => r.quarterId === qid).sort((a,b) => a.order - b.order);
-const getPoemsOf   = rid => poems.filter(p => p.roundId   === rid).sort((a,b) => a.order - b.order);
-const getQuarter   = id  => quarters.find(q => q.id === id);
-const getFreeOf    = qid => freePoems.filter(f => f.quarterId === qid).sort((a,b) => a.order - b.order);
-const getRound     = id  => rounds.find(r => r.id === id);
+const getRoundsOf = qid => rounds.filter(r => r.quarterId === qid).sort((a,b) => a.order - b.order);
+const getPoemsOf = rid => poems.filter(p => p.roundId === rid).sort((a,b) => a.order - b.order);
+const getQuarter = id => quarters.find(q => q.id === id);
+const getFreeOf = qid => freePoems.filter(f => f.quarterId === qid).sort((a,b) => a.order - b.order);
+const getRound = id => rounds.find(r => r.id === id);
 
 /* ═══════════════════════════
    LOAD
@@ -526,9 +525,9 @@ async function loadAll() {
         db.collection('poems').orderBy('order').get(),
         db.collection('freePoems').orderBy('order').get(),
       ]);
-      quarters  = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-      rounds    = rs.docs.map(d => ({ id:d.id, ...d.data() }));
-      poems     = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      quarters = qs.docs.map(d => ({ id:d.id, ...d.data() }));
+      rounds = rs.docs.map(d => ({ id:d.id, ...d.data() }));
+      poems = ps.docs.map(d => ({ id:d.id, ...d.data() }));
       freePoems = fs.docs.map(d => ({ id:d.id, ...d.data() }));
       if (!quarters.length) useSample();
     } catch(e) { console.warn("Firestore 읽기 실패", e); useSample(); }
@@ -538,9 +537,9 @@ async function loadAll() {
 }
 
 function useSample() {
-  quarters  = SAMPLE.quarters;
-  rounds    = SAMPLE.rounds;
-  poems     = SAMPLE.poems;
+  quarters = SAMPLE.quarters;
+  rounds = SAMPLE.rounds;
+  poems = SAMPLE.poems;
   freePoems = SAMPLE.freePoems;
 }
 
@@ -615,7 +614,7 @@ function buildPageItems() {
   pageItems = [];
   quarters.forEach((q, qi) => {
     const qRounds = getRoundsOf(q.id);
-    const fPoems  = getFreeOf(q.id);
+    const fPoems = getFreeOf(q.id);
     const hasContent = qRounds.some(r=>getPoemsOf(r.id).length) || fPoems.length;
     if (!hasContent) return;
     pageItems.push({ type:'quarter', q, qi });
@@ -637,7 +636,7 @@ function renderBook() {
   let html = '';
   quarters.forEach((q, qi) => {
     const qRounds = getRoundsOf(q.id);
-    const fPoems  = getFreeOf(q.id);
+    const fPoems = getFreeOf(q.id);
     const hasContent = qRounds.some(r=>getPoemsOf(r.id).length) || fPoems.length;
     if (!hasContent) return;
     html += `<div class="quarter-page" data-type="quarter" data-id="${q.id}">
@@ -856,7 +855,7 @@ function showView(name) {
   currentView = name;
   if (name !== 'book' || viewMode !== 'page') window.scrollTo({ top:0 });
 }
-function showToc()  { showView('toc'); }
+function showToc() { showView('toc'); }
 function showBook() { showView('book'); }
 
 /* ── PAGE VIEW ─────────────────────── */
@@ -1019,7 +1018,7 @@ document.addEventListener('touchend', e => {
 document.addEventListener('keydown', e => {
   if (currentView!=='book'||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
   if (e.key==='ArrowRight'||e.key==='ArrowDown') nextSection();
-  if (e.key==='ArrowLeft' ||e.key==='ArrowUp')   prevSection();
+  if (e.key==='ArrowLeft' ||e.key==='ArrowUp') prevSection();
 });
 
 /* FLIP */
@@ -1055,7 +1054,7 @@ function checkPassword() {
 }
 document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') checkPassword(); });
 function enterEditMode() { editMode=true; document.body.classList.add('edit-mode'); showView('edit'); }
-function exitEditMode()  { editMode=false; document.body.classList.remove('edit-mode'); showView('cover'); }
+function exitEditMode() { editMode=false; document.body.classList.remove('edit-mode'); showView('cover'); }
 
 /* ═══════════════════════════
    분기 CRUD
@@ -1102,7 +1101,7 @@ function openRoundModal(id) {
   document.getElementById('round-modal-title').textContent = id ? '회차 수정' : '회차 추가';
   const r = id ? getRound(id) : null;
   fillQuarterSelect('r-quarter', r ? r.quarterId : quarters[0].id);
-  document.getElementById('r-num').value   = r ? r.num   : rounds.length+1;
+  document.getElementById('r-num').value = r ? r.num : rounds.length+1;
   document.getElementById('r-title').value = r ? r.title : '';
   document.getElementById('r-order').value = r ? r.order : rounds.length;
   document.getElementById('round-modal').classList.remove('hidden');
@@ -1111,7 +1110,7 @@ function openRoundModal(id) {
 function closeRoundModal() { document.getElementById('round-modal').classList.add('hidden'); editingRoundId=null; }
 async function saveRound() {
   const quarterId = document.getElementById('r-quarter').value;
-  const num   = parseInt(document.getElementById('r-num').value)||1;
+  const num = parseInt(document.getElementById('r-num').value)||1;
   const title = document.getElementById('r-title').value.trim();
   const order = parseInt(document.getElementById('r-order').value)||0;
   if (!title) { alert('회차 시제를 입력해주세요.'); return; }
@@ -1149,9 +1148,9 @@ function openPoemModal(id) {
   togglePoemType();
   const p = id ? poems.find(x=>x.id===id) : null;
   fillRoundSelect('p-round', p ? p.roundId : rounds[0].id);
-  document.getElementById('p-poet').value  = p ? p.poet  : '';
+  document.getElementById('p-poet').value = p ? p.poet : '';
   document.getElementById('p-title').value = p ? p.title : '';
-  document.getElementById('p-body').value  = p ? p.body  : '';
+  document.getElementById('p-body').value = p ? p.body : '';
   document.getElementById('p-order').value = p ? p.order : poems.length;
   document.getElementById('poem-modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('p-poet').focus(), 100);
@@ -1159,10 +1158,10 @@ function openPoemModal(id) {
 function closePoemModal() { document.getElementById('poem-modal').classList.add('hidden'); editingPoemId=null; }
 async function savePoem() {
   const roundId = document.getElementById('p-round').value;
-  const poet    = document.getElementById('p-poet').value.trim();
-  const title   = document.getElementById('p-title').value.trim();
-  const body    = document.getElementById('p-body').value;
-  const order   = parseInt(document.getElementById('p-order').value)||0;
+  const poet = document.getElementById('p-poet').value.trim();
+  const title = document.getElementById('p-title').value.trim();
+  const body = document.getElementById('p-body').value;
+  const order = parseInt(document.getElementById('p-order').value)||0;
   const ptype = document.getElementById('p-type').value;
   if (!poet||!title||!body) { alert('시인, 제목, 본문은 필수입니다.'); return; }
   if (ptype==='free') {
@@ -1222,8 +1221,8 @@ let editingFreePoemId = null;
 
 function togglePoemType() {
   const type = document.getElementById('p-type').value;
-  document.getElementById('p-round-group').style.display   = type==='round' ? '' : 'none';
-  document.getElementById('p-quarter-group').style.display = type==='free'  ? '' : 'none';
+  document.getElementById('p-round-group').style.display = type==='round' ? '' : 'none';
+  document.getElementById('p-quarter-group').style.display = type==='free' ? '' : 'none';
 }
 
 function fillQuarterFreeSelect(selId, selectedId) {
@@ -1239,9 +1238,9 @@ function openFreePoemModal(id) {
   document.getElementById('p-type').value = 'free';
   togglePoemType();
   fillQuarterFreeSelect('p-quarter-free', p ? p.quarterId : quarters[0].id);
-  document.getElementById('p-poet').value  = p ? p.poet  : '';
+  document.getElementById('p-poet').value = p ? p.poet : '';
   document.getElementById('p-title').value = p ? p.title : '';
-  document.getElementById('p-body').value  = p ? p.body  : '';
+  document.getElementById('p-body').value = p ? p.body : '';
   document.getElementById('p-order').value = p ? p.order : freePoems.length;
   document.getElementById('poem-modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('p-poet').focus(), 100);
