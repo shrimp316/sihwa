@@ -42,7 +42,7 @@ body{background:var(--tan);font-family:'Noto Serif KR',serif;min-height:100vh;ov
 
 #topbar{position:fixed;top:0;left:0;right:0;height:50px;background:var(--cream2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 0.8rem;z-index:100;gap:0.5rem;}
 .tb-title{font-size:0.85rem;font-weight:500;color:var(--ink);letter-spacing:0.12em;flex:1;}
-.tb-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:5px 12px;border-radius:20px;cursor:pointer;transition:all 0.15s;letter-spacing:0.06em;}
+.tb-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:5px 0;border-radius:20px;cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;flex:1;text-align:center;white-space:nowrap;}
 .tb-btn:hover{background:var(--tan);color:var(--ink);}
 .tb-btn.active{background:var(--ink);color:var(--cream);border-color:var(--ink);}
 
@@ -465,12 +465,8 @@ let db = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-<<<<<<< HEAD
-  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('오프라인 캐시 비활성:', e.code));
-=======
   db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
   storage = firebase.storage();
->>>>>>> e1e134e42191f6453754f7a8402c6a5b048f79c1
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
 
