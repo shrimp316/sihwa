@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sihwa-v2';
+const CACHE_NAME = 'sihwa-v3';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -11,7 +11,6 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        // 개별 addAll 대신 하나씩 추가해서 하나 실패해도 나머지 계속
         return Promise.allSettled(
           STATIC_ASSETS.map(url =>
             cache.add(url).catch(err => console.warn('캐시 실패:', url, err))
@@ -31,7 +30,6 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Firebase, 외부 폰트/CDN은 캐시 안 함
   const url = e.request.url;
   if (url.includes('firestore.googleapis.com') ||
       url.includes('firebase') ||

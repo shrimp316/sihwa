@@ -42,7 +42,7 @@ body{background:var(--tan);font-family:'Noto Serif KR',serif;min-height:100vh;ov
 
 #topbar{position:fixed;top:0;left:0;right:0;height:50px;background:var(--cream2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 0.8rem;z-index:100;gap:0.5rem;}
 .tb-title{font-size:0.85rem;font-weight:500;color:var(--ink);letter-spacing:0.12em;flex:1;}
-.tb-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:5px 0;border-radius:20px;cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;flex:1;text-align:center;white-space:nowrap;}
+.tb-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:5px 12px;border-radius:20px;cursor:pointer;transition:all 0.15s;letter-spacing:0.06em;}
 .tb-btn:hover{background:var(--tan);color:var(--ink);}
 .tb-btn.active{background:var(--ink);color:var(--cream);border-color:var(--ink);}
 
@@ -185,31 +185,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 .page-card-round-num{font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;color:var(--spine);letter-spacing:0.2em;margin-bottom:0.6rem;}
 .page-card-round-title{font-size:1.4rem;font-weight:300;color:var(--ink-mid);}
 .page-counter{font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.1em;}
-#gallery-view{display:none;width:100%;max-width:760px;padding:2.5rem 1.5rem 6rem;}
-#gallery-view.active{display:block;}
-.gallery-quarter{margin-bottom:3rem;}
-.gallery-quarter-label{font-size:0.72rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;font-family:'Noto Sans KR',sans-serif;margin-bottom:1.2rem;padding-bottom:0.6rem;border-bottom:0.5px solid var(--border);}
-.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem;}
-.gallery-card{background:var(--cream2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;}
-.gallery-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--shadow);}
-.gallery-card-img{width:100%;aspect-ratio:4/3;background:var(--tan);display:flex;align-items:center;justify-content:center;}
-.gallery-card-img img{width:100%;height:100%;object-fit:cover;}
-.gallery-card-img-placeholder{width:100%;aspect-ratio:4/3;background:var(--tan);display:flex;align-items:center;justify-content:center;color:var(--ink-lite);font-size:0.75rem;font-family:'Noto Sans KR',sans-serif;}
-.gallery-card-body{padding:1rem 1.1rem;}
-.gallery-card-title{font-size:0.9rem;color:var(--ink);margin-bottom:0.4rem;line-height:1.3;}
-.gallery-card-note{font-family:'Noto Sans KR',sans-serif;font-size:0.75rem;color:var(--ink-mid);line-height:1.7;white-space:pre-line;}
-.gallery-type-badge{display:inline-block;font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;padding:2px 8px;border-radius:10px;margin-bottom:0.4rem;}
-.badge-illust{background:#e8f0e0;color:#5a7a40;}
-.badge-bg{background:#e0e8f0;color:#405a7a;}
-.badge-etc{background:#f0e8e0;color:#7a5a40;}
-#gallery-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;}
-#gallery-lightbox.active{display:flex;}
-#lb-img{max-width:90vw;max-height:60vh;object-fit:contain;border-radius:8px;margin-bottom:1.2rem;}
-#lb-title{font-size:1rem;color:#fff;margin-bottom:0.4rem;text-align:center;}
-#lb-tag{font-family:'Noto Sans KR',sans-serif;font-size:0.68rem;color:var(--gold);letter-spacing:0.12em;margin-bottom:0.8rem;text-align:center;}
-#lb-note{font-family:'Noto Sans KR',sans-serif;font-size:0.82rem;color:#ccc;line-height:1.8;text-align:center;max-width:520px;white-space:pre-line;}
-#lb-close{position:absolute;top:1.2rem;right:1.5rem;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;opacity:0.7;}
-@media(max-width:600px){.gallery-grid{grid-template-columns:1fr;}}
 .empty-state{text-align:center;padding:3rem 1rem;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#7a6a50;line-height:2;}
 .filter-bar{display:flex;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap;}
 .filter-select{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--edit-text);background:var(--edit-bg);border:0.5px solid var(--edit-border);border-radius:16px;padding:6px 12px;outline:none;cursor:pointer;transition:border-color 0.15s;}
@@ -242,6 +217,7 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 <div id="page-turn-overlay"><div class="flip-sheet" id="flip-sheet"></div></div>
 
 <div id="topbar">
+  <div class="tb-title">시화 詩和</div>
   <button class="tb-btn" id="toc-btn" onclick="showToc()">차례</button>
   <button class="tb-btn" id="read-btn" onclick="showBook()">읽기</button>
   <button class="tb-btn" id="gallery-btn" onclick="showGallery()">갤러리</button>
@@ -271,10 +247,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   </div>
 
   <div id="book-view">
-    <div class="view-toggle">
-      <button class="view-toggle-btn active" id="vt-scroll" onclick="setViewMode('scroll')">≡ 스크롤</button>
-      <button class="view-toggle-btn" id="vt-page" onclick="setViewMode('page')">▭ 페이지</button>
-    </div>
     <div id="book-body"></div>
     <div class="end-page">
       <div class="end-ornament">✦</div>
@@ -285,23 +257,7 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   </div>
 
   <div id="page-view">
-    <div class="view-toggle">
-      <button class="view-toggle-btn" id="vt-scroll2" onclick="setViewMode('scroll')">≡ 스크롤</button>
-      <button class="view-toggle-btn active" id="vt-page2" onclick="setViewMode('page')">▭ 페이지</button>
-    </div>
     <div id="page-card-container"></div>
-  </div>
-
-  <div id="gallery-view">
-    <div id="gallery-body"></div>
-  </div>
-
-  <div id="gallery-lightbox" onclick="closeLightbox()">
-    <button id="lb-close" onclick="closeLightbox()">✕</button>
-    <img id="lb-img" src="" alt="">
-    <div id="lb-title"></div>
-    <div id="lb-tag"></div>
-    <div id="lb-note"></div>
   </div>
 
   <div id="edit-panel">
@@ -509,8 +465,12 @@ let db = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+<<<<<<< HEAD
+  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('오프라인 캐시 비활성:', e.code));
+=======
   db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
   storage = firebase.storage();
+>>>>>>> e1e134e42191f6453754f7a8402c6a5b048f79c1
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
 
@@ -895,8 +855,8 @@ let currentPageIdx = 0;
 
 function setViewMode(mode) {
   viewMode = mode;
-  ['vt-scroll','vt-scroll2'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle('active', mode==='scroll'); });
-  ['vt-page','vt-page2'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle('active', mode==='page'); });
+  document.getElementById('vt-scroll').classList.toggle('active', mode==='scroll');
+  document.getElementById('vt-page').classList.toggle('active', mode==='page');
   if (mode === 'scroll') {
     document.getElementById('book-view').classList.add('active');
     document.getElementById('page-view').classList.remove('active');
@@ -912,8 +872,9 @@ function setViewMode(mode) {
 
 function showView(name) {
   document.getElementById('cover').style.display = 'none';
-  ['toc-view','book-view','page-view','gallery-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['toc-view','book-view','page-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('bottom-nav').classList.remove('active');
+  document.getElementById('view-toggle').style.display = 'none';
   document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
 
   if (name === 'cover') {
@@ -924,6 +885,7 @@ function showView(name) {
   } else if (name === 'book') {
     document.getElementById('read-btn').classList.add('active');
     document.getElementById('bottom-nav').classList.add('active');
+    document.getElementById('view-toggle').style.display = 'flex';
     if (viewMode === 'scroll') {
       document.getElementById('book-view').classList.add('active');
       updateNav();
@@ -932,9 +894,6 @@ function showView(name) {
       buildPageItems();
       renderPageCard();
     }
-  } else if (name === 'gallery') {
-    document.getElementById('gallery-view').classList.add('active');
-    document.getElementById('gallery-btn').classList.add('active');
   } else if (name === 'edit') {
     document.getElementById('edit-panel').classList.add('active');
     document.getElementById('edit-btn').classList.add('active');
@@ -946,7 +905,6 @@ function showView(name) {
 }
 function showToc() { showView('toc'); }
 function showBook() { showView('book'); }
-function showGallery(){ showView('gallery'); }
 
 /* ── PAGE VIEW ─────────────────────── */
 function renderPageCard(dir) {
@@ -1355,41 +1313,6 @@ function renderFreeEdit() {
   });
   body.innerHTML = html || '<div class="empty-state">등록된 자유시가 없어요.</div>';
 }
-
-const TYPE_LABEL = { illust:'시 삽화', bg:'배경 삽화', etc:'기타' };
-const TYPE_BADGE = { illust:'badge-illust', bg:'badge-bg', etc:'badge-etc' };
-function getGalleryOf(qid) { return galleryItems.filter(g=>g.quarterId===qid).sort((a,b)=>a.order-b.order); }
-function renderGallery() {
-  const body = document.getElementById('gallery-body');
-  if (!body) return;
-  if (!galleryItems.length) {
-    body.innerHTML = '<div class="empty-state" style="min-height:40vh;display:flex;align-items:center;justify-content:center;flex-direction:column;">아직 등록된 이미지가 없어요.<br>편집 모드 → 갤러리 탭에서 추가하세요.</div>'; return;
-  }
-  let html = '';
-  quarters.forEach((q,qi) => {
-    const gItems = getGalleryOf(q.id);
-    if (!gItems.length) return;
-    html += '<div class="gallery-quarter"><div class="gallery-quarter-label">'+(qi+1)+'분기 — '+q.title+'</div><div class="gallery-grid">';
-    gItems.forEach(g => {
-      const badge = TYPE_BADGE[g.type]||'badge-etc';
-      const label = TYPE_LABEL[g.type]||'기타';
-      const imgHtml = g.imageUrl ? '<div class="gallery-card-img"><img src="'+g.imageUrl+'" alt="'+g.title+'" loading="lazy"></div>' : '<div class="gallery-card-img-placeholder">이미지 없음</div>';
-      html += '<div class="gallery-card" onclick="openLightbox(\'' + g.id + '\')">' + imgHtml + '<div class="gallery-card-body"><span class="gallery-type-badge ' + badge + '">' + label + '</span><div class="gallery-card-title">' + g.title + '</div>' + (g.note ? '<div class="gallery-card-note">' + g.note + '</div>' : '') + '</div></div>';
-    });
-    html += '</div></div>';
-  });
-  body.innerHTML = html || '<div class="empty-state">이미지가 없어요.</div>';
-}
-function openLightbox(id) {
-  const g = galleryItems.find(x=>x.id===id); if (!g) return;
-  const img = document.getElementById('lb-img');
-  if (g.imageUrl) { img.src=g.imageUrl; img.style.display='block'; } else { img.style.display='none'; }
-  document.getElementById('lb-title').textContent = g.title;
-  document.getElementById('lb-tag').textContent = TYPE_LABEL[g.type]||'';
-  document.getElementById('lb-note').textContent = g.note||'';
-  document.getElementById('gallery-lightbox').classList.add('active');
-}
-function closeLightbox() { document.getElementById('gallery-lightbox').classList.remove('active'); }
 
 /* ═══════════════════════════
    LOADING / INIT
