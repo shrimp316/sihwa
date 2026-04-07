@@ -1,17 +1,23 @@
-const CACHE_NAME = 'sihwa-v1';
+const CACHE_NAME = 'sihwa-v2';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png',
-  'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap',
+  './icon-192x192.png',
+  './icon-512x512.png',
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(cache => {
+        // 개별 addAll 대신 하나씩 추가해서 하나 실패해도 나머지 계속
+        return Promise.allSettled(
+          STATIC_ASSETS.map(url =>
+            cache.add(url).catch(err => console.warn('캐시 실패:', url, err))
+          )
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -25,9 +31,13 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Firebase 요청은 캐시 안 함 — 항상 네트워크
-  if (e.request.url.includes('firestore.googleapis.com') ||
-      e.request.url.includes('firebase')) {
+  // Firebase, 외부 폰트/CDN은 캐시 안 함
+  const url = e.request.url;
+  if (url.includes('firestore.googleapis.com') ||
+      url.includes('firebase') ||
+      url.includes('fonts.googleapis.com') ||
+      url.includes('fonts.gstatic.com') ||
+      url.includes('gstatic.com')) {
     return;
   }
   e.respondWith(

@@ -6,7 +6,6 @@
 <title>글빛을 모아 담다 시화 詩和</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
 <!-- PWA -->
@@ -187,38 +186,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 .page-card-round-title{font-size:1.4rem;font-weight:300;color:var(--ink-mid);}
 .page-counter{font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.1em;}
 .empty-state{text-align:center;padding:3rem 1rem;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#7a6a50;line-height:2;}
-/* ── 갤러리 ── */
-#gallery-view{display:none;width:100%;max-width:760px;padding:2.5rem 1.5rem 6rem;}
-#gallery-view.active{display:block;}
-.gallery-quarter{margin-bottom:3rem;}
-.gallery-quarter-label{font-size:0.72rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;font-family:'Noto Sans KR',sans-serif;margin-bottom:1.2rem;padding-bottom:0.6rem;border-bottom:0.5px solid var(--border);}
-.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem;}
-.gallery-card{background:var(--cream2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;}
-.gallery-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--shadow);}
-.gallery-card-img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--tan);display:flex;align-items:center;justify-content:center;}
-.gallery-card-img img{width:100%;height:100%;object-fit:cover;}
-.gallery-card-img-placeholder{width:100%;aspect-ratio:4/3;background:var(--tan);display:flex;align-items:center;justify-content:center;color:var(--ink-lite);font-size:0.75rem;font-family:'Noto Sans KR',sans-serif;}
-.gallery-card-body{padding:1rem 1.1rem;}
-.gallery-card-title{font-size:0.9rem;color:var(--ink);margin-bottom:0.4rem;line-height:1.3;}
-.gallery-card-tag{display:inline-block;font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;color:var(--gold-d);background:var(--tan);border-radius:10px;padding:2px 8px;margin-bottom:0.5rem;}
-.gallery-card-note{font-family:'Noto Sans KR',sans-serif;font-size:0.75rem;color:var(--ink-mid);line-height:1.7;white-space:pre-line;}
-/* 갤러리 라이트박스 */
-#gallery-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;}
-#gallery-lightbox.active{display:flex;}
-#lb-img{max-width:90vw;max-height:60vh;object-fit:contain;border-radius:8px;margin-bottom:1.2rem;}
-#lb-title{font-size:1rem;color:#fff;margin-bottom:0.4rem;text-align:center;}
-#lb-tag{font-family:'Noto Sans KR',sans-serif;font-size:0.68rem;color:var(--gold);letter-spacing:0.12em;margin-bottom:0.8rem;text-align:center;}
-#lb-note{font-family:'Noto Sans KR',sans-serif;font-size:0.82rem;color:#ccc;line-height:1.8;text-align:center;max-width:520px;white-space:pre-line;}
-#lb-close{position:absolute;top:1.2rem;right:1.5rem;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;opacity:0.7;}
-#lb-close:hover{opacity:1;}
-/* 갤러리 편집 */
-.gallery-type-badge{display:inline-block;font-family:'Noto Sans KR',sans-serif;font-size:0.62rem;padding:2px 8px;border-radius:10px;margin-left:6px;}
-.badge-illust{background:#e8f0e0;color:#5a7a40;}
-.badge-bg{background:#e0e8f0;color:#405a7a;}
-.badge-etc{background:#f0e8e0;color:#7a5a40;}
-/* 업로드 progress */
-.upload-progress{margin-top:0.6rem;font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--edit-gold);}
-@media(max-width:600px){.gallery-grid{grid-template-columns:1fr;}}
 .filter-bar{display:flex;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap;}
 .filter-select{font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;color:var(--edit-text);background:var(--edit-bg);border:0.5px solid var(--edit-border);border-radius:16px;padding:6px 12px;outline:none;cursor:pointer;transition:border-color 0.15s;}
 .filter-select:focus{border-color:var(--edit-gold);}
@@ -257,7 +224,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
     <button class="view-toggle-btn active" id="vt-scroll" onclick="setViewMode('scroll')" title="스크롤">≡</button>
     <button class="view-toggle-btn" id="vt-page" onclick="setViewMode('page')" title="페이지">▭</button>
   </div>
-  <button class="tb-btn" id="gallery-btn" onclick="showGallery()">갤러리</button>
   <button class="tb-btn" id="edit-btn" onclick="tryEditMode()">편집</button>
 </div>
 
@@ -289,18 +255,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
     <div id="page-card-container"></div>
   </div>
 
-  <div id="gallery-view">
-    <div id="gallery-body"></div>
-  </div>
-
-  <div id="gallery-lightbox" onclick="closeLightbox()">
-    <button id="lb-close" onclick="closeLightbox()">✕</button>
-    <img id="lb-img" src="" alt="">
-    <div id="lb-title"></div>
-    <div id="lb-tag"></div>
-    <div id="lb-note"></div>
-  </div>
-
   <div id="edit-panel">
     <div class="firebase-notice">
       <strong>Firebase 연결</strong> — 하단 <code>firebaseConfig</code>를 본인 프로젝트 값으로 교체하세요.
@@ -311,7 +265,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
       <button class="edit-tab" onclick="switchTab('rounds')">회차 관리</button>
       <button class="edit-tab" onclick="switchTab('poems')">시 관리</button>
       <button class="edit-tab" onclick="switchTab('free')">자유시</button>
-      <button class="edit-tab" onclick="switchTab('gallery')">갤러리</button>
     </div>
     <div class="edit-tab-content active" id="tab-quarters">
       <div class="edit-section-header">
@@ -353,13 +306,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
         <button class="edit-add-btn" onclick="openFreePoemModal()">+ 자유시 추가</button>
       </div>
       <div id="free-body"></div>
-    </div>
-    <div class="edit-tab-content" id="tab-gallery">
-      <div class="edit-section-header">
-        <div class="edit-section-title">갤러리 관리</div>
-        <button class="edit-add-btn" onclick="openGalleryModal()">+ 이미지 추가</button>
-      </div>
-      <div id="gallery-edit-body"></div>
     </div>
   </div>
 </div>
@@ -493,50 +439,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   </div>
 </div>
 
-<!-- 갤러리 모달 -->
-<div class="modal-backdrop hidden" id="gallery-modal">
-  <div class="modal-box">
-    <div class="modal-title" id="gallery-modal-title">이미지 추가</div>
-    <div class="form-group">
-      <label class="form-label">소속 분기</label>
-      <select class="form-select" id="g-quarter"></select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">제목</label>
-      <input type="text" class="form-input" id="g-title" placeholder="이미지 제목">
-    </div>
-    <div class="form-group">
-      <label class="form-label">용도</label>
-      <select class="form-select" id="g-type">
-        <option value="illust">시 삽화</option>
-        <option value="bg">배경 삽화</option>
-        <option value="etc">기타</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">주석 / 설명</label>
-      <textarea class="form-textarea" id="g-note" placeholder="이미지에 대한 설명이나 주석을 입력하세요..." style="min-height:100px;"></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">이미지 파일 업로드</label>
-      <input type="file" class="form-input" id="g-file" accept="image/*" style="padding:6px;">
-      <div class="upload-progress" id="g-progress"></div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">또는 이미지 URL 직접 입력</label>
-      <input type="text" class="form-input" id="g-url" placeholder="https://...">
-    </div>
-    <div class="form-group">
-      <label class="form-label">정렬 순서</label>
-      <input type="number" class="form-input" id="g-order" value="0">
-    </div>
-    <div class="modal-actions">
-      <button class="modal-btn cancel" onclick="closeGalleryModal()">취소</button>
-      <button class="modal-btn confirm" id="g-save-btn" onclick="saveGalleryItem()">저장</button>
-    </div>
-  </div>
-</div>
-
 <script>
 /* ═══════════════════════════
    FIREBASE CONFIG — 여기 수정
@@ -554,12 +456,11 @@ const EDIT_PASSWORD = "tlghk2026";
 /* ═══════════════════════════
    FIREBASE INIT
    ═══════════════════════════ */
-let db = null, storage = null, firebaseReady = false;
+let db = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('오프라인 캐시 비활성:', e.code));
-  storage = firebase.storage();
+  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
 
@@ -609,7 +510,7 @@ const SAMPLE = {
 /* ═══════════════════════════
    STATE
    ═══════════════════════════ */
-let quarters = [], rounds = [], poems = [], freePoems = [], galleryItems = [];
+let quarters = [], rounds = [], poems = [], freePoems = [];
 let currentView = 'cover', editMode = false, activeTab = 'quarters';
 let editingQuarterId = null, editingRoundId = null, editingPoemId = null;
 let deletingType = null, deletingId = null;
@@ -670,15 +571,14 @@ async function loadAll() {
 }
 
 function useSample() {
-  quarters  = SAMPLE.quarters;
-  rounds    = SAMPLE.rounds;
-  poems     = SAMPLE.poems;
+  quarters = SAMPLE.quarters;
+  rounds = SAMPLE.rounds;
+  poems = SAMPLE.poems;
   freePoems = SAMPLE.freePoems;
-  galleryItems = [];
 }
 
 function renderAll() {
-  renderCover(); renderToc(); renderBook(); renderGallery();
+  renderCover(); renderToc(); renderBook();
   if (editMode) renderEditAll();
 }
 function getQuarterPoets(q) {
@@ -826,7 +726,6 @@ function renderEditAll() {
   populatePoemFilters();
   renderPoemsEdit();
   renderFreeEdit();
-  renderGalleryEdit();
 }
 
 function populateRoundFilter() {
@@ -959,7 +858,7 @@ function setViewMode(mode) {
 
 function showView(name) {
   document.getElementById('cover').style.display = 'none';
-  ['toc-view','book-view','page-view','gallery-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['toc-view','book-view','page-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('bottom-nav').classList.remove('active');
   document.getElementById('view-toggle').style.display = 'none';
   document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
@@ -981,9 +880,6 @@ function showView(name) {
       buildPageItems();
       renderPageCard();
     }
-  } else if (name === 'gallery') {
-    document.getElementById('gallery-view').classList.add('active');
-    document.getElementById('gallery-btn').classList.add('active');
   } else if (name === 'edit') {
     document.getElementById('edit-panel').classList.add('active');
     document.getElementById('edit-btn').classList.add('active');
@@ -1055,7 +951,7 @@ function nextSection() {
 /* EDIT TABS */
 function switchTab(name) {
   activeTab = name;
-  const tabs = ['quarters','rounds','poems','free','gallery'];
+  const tabs = ['quarters','rounds','poems','free'];
   document.querySelectorAll('.edit-tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.edit-tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
@@ -1340,7 +1236,7 @@ function openDelModal(type, id, name) {
 function closeDelModal() { document.getElementById('del-modal').classList.add('hidden'); deletingType=null; deletingId=null; }
 async function confirmDelete() {
   if (!deletingId) return;
-  const col = deletingType==='quarter'?'quarters':deletingType==='round'?'rounds':deletingType==='freePoem'?'freePoems':deletingType==='gallery'?'gallery':'poems';
+  const col = deletingType==='quarter'?'quarters':deletingType==='round'?'rounds':deletingType==='freePoem'?'freePoems':'poems';
   if (firebaseReady) {
     try { await db.collection(col).doc(deletingId).delete(); closeDelModal(); await loadAll(); return; }
     catch(e) { alert('삭제 실패'); return; }
@@ -1348,7 +1244,6 @@ async function confirmDelete() {
   if (deletingType==='quarter') quarters = quarters.filter(q=>q.id!==deletingId);
   else if (deletingType==='round') rounds = rounds.filter(r=>r.id!==deletingId);
   else if (deletingType==='freePoem') freePoems = freePoems.filter(p=>p.id!==deletingId);
-  else if (deletingType==='gallery') galleryItems = galleryItems.filter(g=>g.id!==deletingId);
   else poems = poems.filter(p=>p.id!==deletingId);
   closeDelModal(); renderAll();
 }
@@ -1409,164 +1304,6 @@ function renderFreeEdit() {
     html += '</div>';
   });
   body.innerHTML = html || '<div class="empty-state">등록된 자유시가 없어요.</div>';
-}
-
-/* ═══════════════════════════
-   갤러리 RENDER
-   ═══════════════════════════ */
-const TYPE_LABEL = { illust:'시 삽화', bg:'배경 삽화', etc:'기타' };
-const TYPE_BADGE = { illust:'badge-illust', bg:'badge-bg', etc:'badge-etc' };
-
-function getGalleryOf(qid) {
-  return galleryItems.filter(g => g.quarterId === qid).sort((a,b) => a.order - b.order);
-}
-
-function renderGallery() {
-  const body = document.getElementById('gallery-body');
-  if (!body) return;
-  if (!galleryItems.length) {
-    body.innerHTML = '<div class="empty-state" style="min-height:40vh;display:flex;align-items:center;justify-content:center;flex-direction:column;">아직 등록된 이미지가 없어요.<br>편집 모드 → 갤러리 탭에서 추가하세요.</div>';
-    return;
-  }
-  let html = '';
-  quarters.forEach((q, qi) => {
-    const gItems = getGalleryOf(q.id);
-    if (!gItems.length) return;
-    html += '<div class="gallery-quarter">'
-      + '<div class="gallery-quarter-label">' + (qi+1) + '분기 — ' + q.title + '</div>'
-      + '<div class="gallery-grid">';
-    gItems.forEach(g => {
-      const badge = TYPE_BADGE[g.type] || 'badge-etc';
-      const label = TYPE_LABEL[g.type] || '기타';
-      const gid = g.id;
-      const imgHtml = g.imageUrl
-        ? '<div class="gallery-card-img"><img src="' + g.imageUrl + '" alt="' + g.title + '" loading="lazy"></div>'
-        : '<div class="gallery-card-img-placeholder">이미지 없음</div>';
-      const noteHtml = g.note ? '<div class="gallery-card-note">' + g.note + '</div>' : '';
-      html += '<div class="gallery-card" onclick="openLightbox(\'' + gid + '\')">'
-        + imgHtml
-        + '<div class="gallery-card-body">'
-        + '<span class="gallery-type-badge ' + badge + '">' + label + '</span>'
-        + '<div class="gallery-card-title">' + g.title + '</div>'
-        + noteHtml
-        + '</div></div>';
-      });
-    html += '</div></div>';
-  });
-  body.innerHTML = html || '<div class="empty-state">이미지가 없어요.</div>';
-}
-
-function openLightbox(id) {
-  const g = galleryItems.find(x => x.id === id);
-  if (!g) return;
-  const lb = document.getElementById('gallery-lightbox');
-  const img = document.getElementById('lb-img');
-  if (g.imageUrl) { img.src = g.imageUrl; img.style.display = 'block'; }
-  else { img.style.display = 'none'; }
-  document.getElementById('lb-title').textContent = g.title;
-  document.getElementById('lb-tag').textContent = TYPE_LABEL[g.type] || '';
-  document.getElementById('lb-note').textContent = g.note || '';
-  lb.classList.add('active');
-}
-function closeLightbox() { document.getElementById('gallery-lightbox').classList.remove('active'); }
-
-function renderGalleryEdit() {
-  const body = document.getElementById('gallery-edit-body');
-  if (!body) return;
-  if (!galleryItems.length) {
-    body.innerHTML = '<div class="empty-state">갤러리 이미지가 없어요. + 이미지 추가로 시작하세요.</div>'; return;
-  }
-  let html = '';
-  quarters.forEach(q => {
-    const gItems = getGalleryOf(q.id);
-    if (!gItems.length) return;
-    html += '<div class="edit-group"><div class="edit-group-label"><span>' + q.title + '</span> 갤러리</div>';
-    gItems.forEach(g => {
-      const label = TYPE_LABEL[g.type] || '기타';
-      const safeTitle = g.title.replace(/'/g, "\'");
-      const gid = g.id;
-      html += '<div class="edit-card">'
-        + '<div class="edit-card-info">'
-        + '<div class="edit-card-title">' + g.title + '</div>'
-        + '<div class="edit-card-sub">' + label + '</div>'
-        + (g.note ? '<div class="edit-card-preview">' + g.note + '</div>' : '')
-        + '</div><div class="edit-card-actions">'
-        + '<button class="ecard-btn" onclick="openGalleryModal(\'' + gid + '\')">수정</button>'
-        + '<button class="ecard-btn del" onclick="openDelModal(\'gallery\',\'' + gid + '\',\'' + safeTitle + '\')">삭제</button>'
-        + '</div></div>';
-    });
-    html += '</div>';
-  });
-  body.innerHTML = html || '<div class="empty-state">등록된 이미지가 없어요.</div>';
-}
-
-/* ═══════════════════════════
-   갤러리 CRUD
-   ═══════════════════════════ */
-let editingGalleryId = null;
-
-function fillGalleryQuarterSelect(selectedId) {
-  document.getElementById('g-quarter').innerHTML = quarters
-    .map(q => '<option value="' + q.id + '"' + (q.id===selectedId?' selected':'') + '>' + q.title + '</option>').join('');
-}
-
-function openGalleryModal(id) {
-  if (!quarters.length) { alert('분기를 먼저 만들어주세요.'); return; }
-  editingGalleryId = id || null;
-  document.getElementById('gallery-modal-title').textContent = id ? '이미지 수정' : '이미지 추가';
-  const g = id ? galleryItems.find(x=>x.id===id) : null;
-  fillGalleryQuarterSelect(g ? g.quarterId : quarters[0].id);
-  document.getElementById('g-title').value  = g ? g.title  : '';
-  document.getElementById('g-type').value   = g ? (g.type||'illust') : 'illust';
-  document.getElementById('g-note').value   = g ? (g.note||'')  : '';
-  document.getElementById('g-url').value    = g ? (g.imageUrl||'') : '';
-  document.getElementById('g-order').value  = g ? g.order  : galleryItems.length;
-  document.getElementById('g-progress').textContent = '';
-  document.getElementById('g-file').value   = '';
-  document.getElementById('gallery-modal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('g-title').focus(), 100);
-}
-function closeGalleryModal() { document.getElementById('gallery-modal').classList.add('hidden'); editingGalleryId=null; }
-
-async function saveGalleryItem() {
-  const quarterId = document.getElementById('g-quarter').value;
-  const title  = document.getElementById('g-title').value.trim();
-  const type   = document.getElementById('g-type').value;
-  const note   = document.getElementById('g-note').value.trim();
-  const order  = parseInt(document.getElementById('g-order').value)||0;
-  const file   = document.getElementById('g-file').files[0];
-  let imageUrl = document.getElementById('g-url').value.trim();
-  if (!title) { alert('제목을 입력해주세요.'); return; }
-
-  const btn = document.getElementById('g-save-btn');
-  btn.disabled = true;
-
-  // 파일 업로드
-  if (file && storage) {
-    try {
-      document.getElementById('g-progress').textContent = '업로드 중...';
-      const ref = storage.ref('gallery/' + Date.now() + '_' + file.name);
-      const snap = await ref.put(file);
-      imageUrl = await snap.ref.getDownloadURL();
-      document.getElementById('g-progress').textContent = '업로드 완료!';
-    } catch(e) {
-      alert('이미지 업로드 실패: ' + e.message);
-      btn.disabled = false; return;
-    }
-  }
-
-  const data = { quarterId, title, type, note, order, imageUrl };
-
-  if (firebaseReady) {
-    try {
-      if (editingGalleryId) await db.collection('gallery').doc(editingGalleryId).update(data);
-      else await db.collection('gallery').add(data);
-      closeGalleryModal(); btn.disabled=false; await loadAll(); return;
-    } catch(e) { alert('저장 실패: ' + e.message); btn.disabled=false; return; }
-  }
-  if (editingGalleryId) { const i=galleryItems.findIndex(g=>g.id===editingGalleryId); if(i>=0) galleryItems[i]={...galleryItems[i],...data}; }
-  else galleryItems.push({ id:'g_'+Date.now(), ...data });
-  closeGalleryModal(); btn.disabled=false; renderAll();
 }
 
 /* ═══════════════════════════
