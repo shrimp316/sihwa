@@ -562,7 +562,7 @@ let db = null, storage = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('오프라인 캐시 비활성:', e.code));
+  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
   storage = firebase.storage();
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
