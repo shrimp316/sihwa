@@ -1438,16 +1438,19 @@ function renderGallery() {
     gItems.forEach(g => {
       const badge = TYPE_BADGE[g.type] || 'badge-etc';
       const label = TYPE_LABEL[g.type] || '기타';
-      html += '<div class="gallery-card" onclick="openLightbox('' + g.id + '')">'
-        + (g.imageUrl
-          ? '<div class="gallery-card-img"><img src="' + g.imageUrl + '" alt="' + g.title + '" loading="lazy"></div>'
-          : '<div class="gallery-card-img-placeholder">이미지 없음</div>')
+      const gid = g.id;
+      const imgHtml = g.imageUrl
+        ? '<div class="gallery-card-img"><img src="' + g.imageUrl + '" alt="' + g.title + '" loading="lazy"></div>'
+        : '<div class="gallery-card-img-placeholder">이미지 없음</div>';
+      const noteHtml = g.note ? '<div class="gallery-card-note">' + g.note + '</div>' : '';
+      html += '<div class="gallery-card" onclick="openLightbox(\'' + gid + '\')">'
+        + imgHtml
         + '<div class="gallery-card-body">'
         + '<span class="gallery-type-badge ' + badge + '">' + label + '</span>'
         + '<div class="gallery-card-title">' + g.title + '</div>'
-        + (g.note ? '<div class="gallery-card-note">' + g.note + '</div>' : '')
+        + noteHtml
         + '</div></div>';
-    });
+      });
     html += '</div></div>';
   });
   body.innerHTML = html || '<div class="empty-state">이미지가 없어요.</div>';
@@ -1481,14 +1484,15 @@ function renderGalleryEdit() {
     gItems.forEach(g => {
       const label = TYPE_LABEL[g.type] || '기타';
       const safeTitle = g.title.replace(/'/g, "\'");
+      const gid = g.id;
       html += '<div class="edit-card">'
         + '<div class="edit-card-info">'
         + '<div class="edit-card-title">' + g.title + '</div>'
         + '<div class="edit-card-sub">' + label + '</div>'
         + (g.note ? '<div class="edit-card-preview">' + g.note + '</div>' : '')
         + '</div><div class="edit-card-actions">'
-        + '<button class="ecard-btn" onclick="openGalleryModal('' + g.id + '')">수정</button>'
-        + '<button class="ecard-btn del" onclick="openDelModal('gallery','' + g.id + '','' + safeTitle + '')">삭제</button>'
+        + '<button class="ecard-btn" onclick="openGalleryModal(\'' + gid + '\')">수정</button>'
+        + '<button class="ecard-btn del" onclick="openDelModal(\'gallery\',\'' + gid + '\',\'' + safeTitle + '\')">삭제</button>'
         + '</div></div>';
     });
     html += '</div>';
