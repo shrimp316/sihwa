@@ -165,8 +165,8 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
 .end-sub{font-family:'Noto Sans KR',sans-serif;font-size:0.7rem;color:var(--ink-lite);letter-spacing:0.15em;}
 .swipe-hint{text-align:center;font-family:'Noto Sans KR',sans-serif;font-size:0.65rem;color:var(--ink-lite);letter-spacing:0.12em;padding:1rem;opacity:0.6;}
 /* 보기 전환 버튼 */
-.view-toggle{display:flex;gap:6px;margin-left:auto;}
-.view-toggle-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.68rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:4px 10px;border-radius:14px;cursor:pointer;transition:all 0.15s;}
+.view-toggle{display:flex;gap:6px;justify-content:center;padding:1.2rem 0 0.2rem;}
+.view-toggle-btn{font-family:'Noto Sans KR',sans-serif;font-size:0.68rem;color:var(--ink-lite);background:none;border:0.5px solid var(--border);padding:5px 14px;border-radius:14px;cursor:pointer;transition:all 0.15s;}
 .view-toggle-btn.active{background:var(--ink);color:var(--cream);border-color:var(--ink);}
 /* 페이지 뷰 */
 #page-view{display:none;width:100%;min-height:calc(100vh - 106px);overflow:hidden;}
@@ -220,10 +220,6 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   <div class="tb-title">시화 詩和</div>
   <button class="tb-btn" id="toc-btn" onclick="showToc()">차례</button>
   <button class="tb-btn" id="read-btn" onclick="showBook()">읽기</button>
-  <div class="view-toggle" id="view-toggle" style="display:none;">
-    <button class="view-toggle-btn active" id="vt-scroll" onclick="setViewMode('scroll')" title="스크롤">≡</button>
-    <button class="view-toggle-btn" id="vt-page" onclick="setViewMode('page')" title="페이지">▭</button>
-  </div>
   <button class="tb-btn" id="edit-btn" onclick="tryEditMode()">편집</button>
 </div>
 
@@ -242,6 +238,10 @@ body.edit-mode .tb-title{color:var(--edit-gold);}
   </div>
 
   <div id="book-view">
+    <div class="view-toggle" id="view-toggle">
+      <button class="view-toggle-btn active" id="vt-scroll" onclick="setViewMode('scroll')">≡ 스크롤</button>
+      <button class="view-toggle-btn" id="vt-page" onclick="setViewMode('page')">▭ 페이지</button>
+    </div>
     <div id="book-body"></div>
     <div class="end-page">
       <div class="end-ornament">✦</div>
@@ -460,7 +460,7 @@ let db = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('오프라인 캐시 비활성:', e.code));
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
 
@@ -860,7 +860,7 @@ function showView(name) {
   document.getElementById('cover').style.display = 'none';
   ['toc-view','book-view','page-view','edit-panel'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('bottom-nav').classList.remove('active');
-  document.getElementById('view-toggle').style.display = 'none';
+
   document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
 
   if (name === 'cover') {
@@ -871,7 +871,7 @@ function showView(name) {
   } else if (name === 'book') {
     document.getElementById('read-btn').classList.add('active');
     document.getElementById('bottom-nav').classList.add('active');
-    document.getElementById('view-toggle').style.display = 'flex';
+
     if (viewMode === 'scroll') {
       document.getElementById('book-view').classList.add('active');
       updateNav();
