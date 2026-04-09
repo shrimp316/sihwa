@@ -6,7 +6,6 @@
 <title>글빛을 모아 담다 시화 詩和</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
 <!-- PWA -->
@@ -462,10 +461,11 @@ const EDIT_PASSWORD = "tlghk2026";
 /* ═══════════════════════════
    FIREBASE INIT
    ═══════════════════════════ */
-let db = null, storage = null, firebaseReady = false;
+let db = null, firebaseReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
   storage = firebase.storage();
   firebaseReady = true;
 } catch(e) { console.warn("Firebase 미연결 — 샘플 데이터로 실행", e); }
@@ -545,30 +545,38 @@ async function loadAll() {
     hideLoading();
   }
 
-  // 2단계: Firebase에서 최신 데이터 로드
+  // 2단계: Firebase에서 최신 데이터 로드 (컬렉션별 개별 로드)
   if (firebaseReady) {
+    let loaded = false;
     try {
-      const [qs, rs, ps, fs] = await Promise.all([
-        db.collection('quarters').orderBy('order').get(),
-        db.collection('rounds').orderBy('order').get(),
-        db.collection('poems').orderBy('order').get(),
-        db.collection('freePoems').orderBy('order').get(),
-      ]);
-      quarters  = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-      rounds    = rs.docs.map(d => ({ id:d.id, ...d.data() }));
-      poems     = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+      const qs = await db.collection('quarters').orderBy('order').get();
+      quarters = qs.docs.map(d => ({ id:d.id, ...d.data() }));
+      loaded = true;
+    } catch(e) { console.warn('quarters 로드 실패', e); if (!snap) quarters = SAMPLE.quarters; }
+
+    try {
+      const rs = await db.collection('rounds').orderBy('order').get();
+      rounds = rs.docs.map(d => ({ id:d.id, ...d.data() }));
+    } catch(e) { console.warn('rounds 로드 실패', e); if (!snap) rounds = SAMPLE.rounds; }
+
+    try {
+      const ps = await db.collection('poems').orderBy('order').get();
+      poems = ps.docs.map(d => ({ id:d.id, ...d.data() }));
+    } catch(e) { console.warn('poems 로드 실패', e); if (!snap) poems = SAMPLE.poems; }
+
+    try {
+      const fs = await db.collection('freePoems').orderBy('order').get();
       freePoems = fs.docs.map(d => ({ id:d.id, ...d.data() }));
-      if (!quarters.length && !snap) useSample();
-      try {
-        const gs = await db.collection('gallery').orderBy('order').get();
-        galleryItems = gs.docs.map(d => ({ id:d.id, ...d.data() }));
-      } catch(e) { galleryItems = []; }
-      saveSnapshot();
-      renderAll();
-    } catch(e) {
-      console.warn('Firestore 읽기 실패', e);
-      if (!snap) useSample();
-    }
+    } catch(e) { freePoems = snap ? (snap.freePoems||[]) : []; }
+
+    try {
+      const gs = await db.collection('gallery').orderBy('order').get();
+      galleryItems = gs.docs.map(d => ({ id:d.id, ...d.data() }));
+    } catch(e) { galleryItems = []; }
+
+    if (loaded && !quarters.length && !snap) useSample();
+    saveSnapshot();
+    renderAll();
   } else {
     if (!snap) useSample();
   }
