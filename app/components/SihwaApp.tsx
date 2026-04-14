@@ -1,7 +1,11 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { supabase, Quarter, Round, Poem, FreePoem } from '@/lib/supabase'
+import { db, Quarter, Round, Poem, FreePoem } from '@/lib/firebase'
+import {
+  collection, getDocs, addDoc, updateDoc, deleteDoc,
+  doc, query, orderBy
+} from 'firebase/firestore'
 
 const EDIT_PASSWORD = process.env.NEXT_PUBLIC_EDIT_PASSWORD || 'tlghk2026'
 const SNAPSHOT_KEY = 'sihwa_snapshot'
@@ -115,23 +119,22 @@ export default function SihwaApp() {
 
   // Load data
   const loadAll = useCallback(async () => {
-    if (!supabase) return
     try {
-      const [qRes, rRes, pRes, fRes] = await Promise.all([
-        supabase.from('quarters').select('*').order('order'),
-        supabase.from('rounds').select('*').order('order'),
-        supabase.from('poems').select('*').order('order'),
-        supabase.from('free_poems').select('*').order('order'),
+      const [qSnap, rSnap, pSnap, fSnap] = await Promise.all([
+        getDocs(query(collection(db, 'quarters'), orderBy('order'))),
+        getDocs(query(collection(db, 'rounds'), orderBy('order'))),
+        getDocs(query(collection(db, 'poems'), orderBy('order'))),
+        getDocs(query(collection(db, 'free_poems'), orderBy('order'))),
       ])
-      const q = qRes.data || []
-      const r = rRes.data || []
-      const p = pRes.data || []
-      const f = fRes.data || []
+      const q = qSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Quarter[]
+      const r = rSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Round[]
+      const p = pSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Poem[]
+      const f = fSnap.docs.map(d => ({ id: d.id, ...d.data() })) as FreePoem[]
       if (q.length || p.length) {
         setQuarters(q); setRounds(r); setPoems(p); setFreePoems(f)
         saveSnapshot(q, r, p, f)
       }
-    } catch { /* Supabase 미연결 시 스냅샷/샘플 사용 */ }
+    } catch { /* Firebase 미연결 시 스냅샷/샘플 사용 */ }
   }, [])
 
   useEffect(() => {
@@ -230,16 +233,15 @@ export default function SihwaApp() {
 
   const saveQuarter = async () => {
     if (!qTitle.trim()) { alert('대주제를 입력해주세요.'); return }
-    if (!supabase) { alert('Supabase가 연결되지 않았어요. .env.local을 확인해주세요.'); return }
     const data = { title: qTitle.trim(), intro: qIntro.trim(), order: qOrder }
     try {
       if (editingQuarterId) {
-        await supabase.from('quarters').update(data).eq('id', editingQuarterId)
+        await updateDoc(doc(db, 'quarters', editingQuarterId), data)
       } else {
-        await supabase.from('quarters').insert(data)
+        await addDoc(collection(db, 'quarters'), data)
       }
       setShowQuarterModal(false); await loadAll()
-    } catch { alert('저장 실패: Supabase 설정을 확인해주세요.') }
+    } catch { alert('저장 실패: Firebase 설정을 확인해주세요.') }
   }
 
   // Round CRUD
@@ -258,13 +260,12 @@ export default function SihwaApp() {
 
   const saveRound = async () => {
     if (!rTitle.trim()) { alert('회차 시제를 입력해주세요.'); return }
-    if (!supabase) { alert('Supabase가 연결되지 않았어요.'); return }
     const data = { quarter_id: rQuarterId, num: rNum, title: rTitle.trim(), order: rOrder }
     try {
       if (editingRoundId) {
-        await supabase.from('rounds').update(data).eq('id', editingRoundId)
+        await updateDoc(doc(db, 'rounds', editingRoundId), data)
       } else {
-        await supabase.from('rounds').insert(data)
+        await addDoc(collection(db, 'rounds'), data)
       }
       setShowRoundModal(false); await loadAll()
     } catch { alert('저장 실패') }
@@ -301,16 +302,15 @@ export default function SihwaApp() {
 
   const savePoem = async () => {
     if (!pPoet.trim() || !pTitle.trim() || !pBody.trim()) { alert('시인, 제목, 본문은 필수입니다.'); return }
-    if (!supabase) { alert('Supabase가 연결되지 않았어요.'); return }
     try {
       if (pType === 'free') {
         const data = { quarter_id: pQuarterId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
-        if (editingFreePoemId) await supabase.from('free_poems').update(data).eq('id', editingFreePoemId)
-        else await supabase.from('free_poems').insert(data)
+        if (editingFreePoemId) await updateDoc(doc(db, 'free_poems', editingFreePoemId), data)
+        else await addDoc(collection(db, 'free_poems'), data)
       } else {
         const data = { round_id: pRoundId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
-        if (editingPoemId) await supabase.from('poems').update(data).eq('id', editingPoemId)
-        else await supabase.from('poems').insert(data)
+        if (editingPoemId) await updateDoc(doc(db, 'poems', editingPoemId), data)
+        else await addDoc(collection(db, 'poems'), data)
       }
       setShowPoemModal(false); await loadAll()
     } catch { alert('저장 실패') }
@@ -322,10 +322,10 @@ export default function SihwaApp() {
   }
 
   const confirmDelete = async () => {
-    if (!deletingId || !supabase) return
+    if (!deletingId) return
     const tbl = deletingType === 'quarter' ? 'quarters' : deletingType === 'round' ? 'rounds' : deletingType === 'freePoem' ? 'free_poems' : 'poems'
     try {
-      await supabase.from(tbl).delete().eq('id', deletingId)
+      await deleteDoc(doc(db, tbl, deletingId))
       setShowDelModal(false); setDeletingType(null); setDeletingId(null)
       await loadAll()
     } catch { alert('삭제 실패') }
