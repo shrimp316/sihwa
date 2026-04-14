@@ -16,23 +16,23 @@ const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: 
     { id: 'q2', title: '관계', order: 1 },
   ],
   rounds: [
-    { id: 'r1', title: '봄', num: 1, quarter_id: 'q1', order: 0 },
-    { id: 'r2', title: '여름', num: 2, quarter_id: 'q1', order: 1 },
-    { id: 'r3', title: '처음', num: 3, quarter_id: 'q2', order: 0 },
-    { id: 'r4', title: '이별', num: 4, quarter_id: 'q2', order: 1 },
+    { id: 'r1', title: '봄', num: 1, quarterId: 'q1', order: 0 },
+    { id: 'r2', title: '여름', num: 2, quarterId: 'q1', order: 1 },
+    { id: 'r3', title: '처음', num: 3, quarterId: 'q2', order: 0 },
+    { id: 'r4', title: '이별', num: 4, quarterId: 'q2', order: 1 },
   ],
   poems: [
     {
-      id: 'p1', round_id: 'r1', poet: '김하늘', title: '봄의 기억', order: 0,
+      id: 'p1', roundId: 'r1', poet: '김하늘', title: '봄의 기억', order: 0,
       body: '봄이 오면 나는 늘\n창문 하나를 더 열어두었다\n\n바람이 커튼을 밀어내고\n그 틈으로 햇빛이 들어와\n방 안 가득 쌓인 먼지들을\n하나씩 들어 올리던 날\n\n너는 그 먼지들 사이에 있었다',
     },
-    { id: 'p2', round_id: 'r1', poet: '이서준', title: '연두색 오후', order: 1, body: '연두색이 번지던 오후\n나는 창가에 앉아\n아무것도 하지 않았다\n\n그게 가장 봄다운 일이었다' },
-    { id: 'p3', round_id: 'r2', poet: '박지유', title: '여름 끝에서', order: 0, body: '여름은 늘 너무 갑자기 끝난다\n분명 뜨거웠는데\n어느 날 보면 이미 식어있어\n\n우리가 그랬던 것처럼' },
-    { id: 'p4', round_id: 'r3', poet: '최민아', title: '처음 본 얼굴', order: 0, body: '처음 본 얼굴인데\n어딘가 낯이 익었다\n\n아마도 내가 오래\n기다려온 얼굴이라서' },
-    { id: 'p5', round_id: 'r4', poet: '정우찬', title: '이별의 문법', order: 0, body: '이별에도 문법이 있다면\n주어는 언제나 둘이고\n동사는 언제나 하나다\n\n우리는 같은 문장을\n다른 시제로 읽었다' },
+    { id: 'p2', roundId: 'r1', poet: '이서준', title: '연두색 오후', order: 1, body: '연두색이 번지던 오후\n나는 창가에 앉아\n아무것도 하지 않았다\n\n그게 가장 봄다운 일이었다' },
+    { id: 'p3', roundId: 'r2', poet: '박지유', title: '여름 끝에서', order: 0, body: '여름은 늘 너무 갑자기 끝난다\n분명 뜨거웠는데\n어느 날 보면 이미 식어있어\n\n우리가 그랬던 것처럼' },
+    { id: 'p4', roundId: 'r3', poet: '최민아', title: '처음 본 얼굴', order: 0, body: '처음 본 얼굴인데\n어딘가 낯이 익었다\n\n아마도 내가 오래\n기다려온 얼굴이라서' },
+    { id: 'p5', roundId: 'r4', poet: '정우찬', title: '이별의 문법', order: 0, body: '이별에도 문법이 있다면\n주어는 언제나 둘이고\n동사는 언제나 하나다\n\n우리는 같은 문장을\n다른 시제로 읽었다' },
   ],
   freePoems: [
-    { id: 'f1', quarter_id: 'q1', poet: '오하린', title: '여백', order: 0, body: '아무것도 쓰지 않은 페이지가\n가장 많은 말을 한다' },
+    { id: 'f1', quarterId: 'q1', poet: '오하린', title: '여백', order: 0, body: '아무것도 쓰지 않은 페이지가\n가장 많은 말을 한다' },
   ],
 }
 
@@ -114,11 +114,11 @@ export default function SihwaApp() {
 
   // Helpers
   const getRoundsOf = useCallback((qid: string) =>
-    rounds.filter(r => r.quarter_id === qid).sort((a, b) => a.order - b.order), [rounds])
+    rounds.filter(r => r.quarterId === qid).sort((a, b) => a.order - b.order), [rounds])
   const getPoemsOf = useCallback((rid: string) =>
-    poems.filter(p => p.round_id === rid).sort((a, b) => a.order - b.order), [poems])
+    poems.filter(p => p.roundId === rid).sort((a, b) => a.order - b.order), [poems])
   const getFreeOf = useCallback((qid: string) =>
-    freePoems.filter(f => f.quarter_id === qid).sort((a, b) => a.order - b.order), [freePoems])
+    freePoems.filter(f => f.quarterId === qid).sort((a, b) => a.order - b.order), [freePoems])
 
   // Load data
   const loadAll = useCallback(async () => {
@@ -167,19 +167,19 @@ export default function SihwaApp() {
   const buildPageItems = useCallback((q: Quarter[], r: Round[], p: Poem[], f: FreePoem[]) => {
     const items: PageItem[] = []
     q.sort((a, b) => a.order - b.order).forEach(quarter => {
-      const qRounds = r.filter(x => x.quarter_id === quarter.id).sort((a, b) => a.order - b.order)
-      const hasPoems = qRounds.some(round => p.some(poem => poem.round_id === round.id))
-      const hasFree = f.some(fp => fp.quarter_id === quarter.id)
+      const qRounds = r.filter(x => x.quarterId === quarter.id).sort((a, b) => a.order - b.order)
+      const hasPoems = qRounds.some(round => p.some(poem => poem.roundId === round.id))
+      const hasFree = f.some(fp => fp.quarterId === quarter.id)
       if (!hasPoems && !hasFree) return
       items.push({ type: 'quarter', id: quarter.id, quarter })
       if (quarter.intro) items.push({ type: 'quarter-intro', id: `intro-${quarter.id}`, quarter })
       qRounds.forEach(round => {
-        const rPoems = p.filter(x => x.round_id === round.id).sort((a, b) => a.order - b.order)
+        const rPoems = p.filter(x => x.roundId === round.id).sort((a, b) => a.order - b.order)
         if (!rPoems.length) return
         items.push({ type: 'round', id: round.id, round, quarter })
         rPoems.forEach(poem => items.push({ type: 'poem', id: poem.id, poem, round, quarter }))
       })
-      const fPoems = f.filter(x => x.quarter_id === quarter.id).sort((a, b) => a.order - b.order)
+      const fPoems = f.filter(x => x.quarterId === quarter.id).sort((a, b) => a.order - b.order)
       if (fPoems.length) {
         items.push({ type: 'free-section', id: `free-${quarter.id}`, quarter })
         fPoems.forEach(fp => items.push({ type: 'free-poem', id: fp.id, freePoem: fp, quarter }))
@@ -256,7 +256,7 @@ export default function SihwaApp() {
     setEditingRoundId(id || null)
     if (id) {
       const r = rounds.find(x => x.id === id)!
-      setRQuarterId(r.quarter_id); setRNum(r.num); setRTitle(r.title); setROrder(r.order)
+      setRQuarterId(r.quarterId); setRNum(r.num); setRTitle(r.title); setROrder(r.order)
     } else {
       setRQuarterId(quarters[0].id); setRNum(rounds.length + 1); setRTitle(''); setROrder(rounds.length)
     }
@@ -266,7 +266,7 @@ export default function SihwaApp() {
 
   const saveRound = async () => {
     if (!rTitle.trim()) { alert('회차 시제를 입력해주세요.'); return }
-    const data = { quarter_id: rQuarterId, num: rNum, title: rTitle.trim(), order: rOrder }
+    const data = { quarterId: rQuarterId, num: rNum, title: rTitle.trim(), order: rOrder }
     try {
       if (editingRoundId) {
         await updateDoc(doc(db, 'rounds', editingRoundId), data)
@@ -284,7 +284,7 @@ export default function SihwaApp() {
     setPType('round')
     if (id) {
       const p = poems.find(x => x.id === id)!
-      setPRoundId(p.round_id); setPPoet(p.poet); setPTitle(p.title); setPBody(p.body); setPOrder(p.order)
+      setPRoundId(p.roundId); setPPoet(p.poet); setPTitle(p.title); setPBody(p.body); setPOrder(p.order)
     } else {
       setPRoundId(rounds[0].id); setPPoet(''); setPTitle(''); setPBody(''); setPOrder(poems.length)
     }
@@ -298,7 +298,7 @@ export default function SihwaApp() {
     setPType('free')
     if (id) {
       const f = freePoems.find(x => x.id === id)!
-      setPQuarterId(f.quarter_id); setPPoet(f.poet); setPTitle(f.title); setPBody(f.body); setPOrder(f.order)
+      setPQuarterId(f.quarterId); setPPoet(f.poet); setPTitle(f.title); setPBody(f.body); setPOrder(f.order)
     } else {
       setPQuarterId(quarters[0].id); setPPoet(''); setPTitle(''); setPBody(''); setPOrder(freePoems.length)
     }
@@ -310,11 +310,11 @@ export default function SihwaApp() {
     if (!pPoet.trim() || !pTitle.trim() || !pBody.trim()) { alert('시인, 제목, 본문은 필수입니다.'); return }
     try {
       if (pType === 'free') {
-        const data = { quarter_id: pQuarterId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
+        const data = { quarterId: pQuarterId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
         if (editingFreePoemId) await updateDoc(doc(db, 'freePoems', editingFreePoemId), data)
         else await addDoc(collection(db, 'freePoems'), data)
       } else {
-        const data = { round_id: pRoundId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
+        const data = { roundId: pRoundId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
         if (editingPoemId) await updateDoc(doc(db, 'poems', editingPoemId), data)
         else await addDoc(collection(db, 'poems'), data)
       }
@@ -363,17 +363,17 @@ export default function SihwaApp() {
   }
 
   // Filter helpers for edit
-  const filteredRounds = filterRoundQuarter ? rounds.filter(r => r.quarter_id === filterRoundQuarter) : rounds
+  const filteredRounds = filterRoundQuarter ? rounds.filter(r => r.quarterId === filterRoundQuarter) : rounds
   const filteredPoems = (() => {
     let p = poems
     if (filterPoemQuarter) {
-      const qRounds = rounds.filter(r => r.quarter_id === filterPoemQuarter).map(r => r.id)
-      p = p.filter(x => qRounds.includes(x.round_id))
+      const qRounds = rounds.filter(r => r.quarterId === filterPoemQuarter).map(r => r.id)
+      p = p.filter(x => qRounds.includes(x.roundId))
     }
-    if (filterPoemRound) p = p.filter(x => x.round_id === filterPoemRound)
+    if (filterPoemRound) p = p.filter(x => x.roundId === filterPoemRound)
     return p
   })()
-  const filteredFreePoems = filterPoemQuarter ? freePoems.filter(f => f.quarter_id === filterPoemQuarter) : freePoems
+  const filteredFreePoems = filterPoemQuarter ? freePoems.filter(f => f.quarterId === filterPoemQuarter) : freePoems
 
   if (loading) {
     return (
@@ -657,7 +657,7 @@ export default function SihwaApp() {
                 </select>
               </div>
               {filteredRounds.sort((a, b) => a.order - b.order).map(r => {
-                const q = quarters.find(x => x.id === r.quarter_id)
+                const q = quarters.find(x => x.id === r.quarterId)
                 return (
                   <div key={r.id} className="edit-card">
                     <div className="edit-card-info">
@@ -689,12 +689,12 @@ export default function SihwaApp() {
                 </select>
                 <select className="filter-select" value={filterPoemRound} onChange={e => setFilterPoemRound(e.target.value)}>
                   <option value="">전체 회차</option>
-                  {(filterPoemQuarter ? rounds.filter(r => r.quarter_id === filterPoemQuarter) : rounds)
+                  {(filterPoemQuarter ? rounds.filter(r => r.quarterId === filterPoemQuarter) : rounds)
                     .map(r => <option key={r.id} value={r.id}>{r.num}회차 — {r.title}</option>)}
                 </select>
               </div>
               {filteredPoems.sort((a, b) => a.order - b.order).map(p => {
-                const r = rounds.find(x => x.id === p.round_id)
+                const r = rounds.find(x => x.id === p.roundId)
                 return (
                   <div key={p.id} className="edit-card">
                     <div className="edit-card-info">
@@ -721,7 +721,7 @@ export default function SihwaApp() {
                 <button className="edit-add-btn" onClick={() => openFreePoemModal()}>+ 자유시 추가</button>
               </div>
               {filteredFreePoems.sort((a, b) => a.order - b.order).map(f => {
-                const q = quarters.find(x => x.id === f.quarter_id)
+                const q = quarters.find(x => x.id === f.quarterId)
                 return (
                   <div key={f.id} className="edit-card">
                     <div className="edit-card-info">
@@ -859,7 +859,7 @@ export default function SihwaApp() {
                 <label className="form-label">회차</label>
                 <select className="form-select" value={pRoundId} onChange={e => setPRoundId(e.target.value)}>
                   {quarters.map(q => {
-                    const qr = rounds.filter(r => r.quarter_id === q.id)
+                    const qr = rounds.filter(r => r.quarterId === q.id)
                     if (!qr.length) return null
                     return <optgroup key={q.id} label={q.title}>
                       {qr.map(r => <option key={r.id} value={r.id}>{r.num}회차 — {r.title}</option>)}

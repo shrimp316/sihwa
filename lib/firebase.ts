@@ -22,7 +22,7 @@ export type Quarter = {
 
 export type Round = {
   id: string
-  quarter_id: string
+  quarterId: string
   num: number
   title: string
   order: number
@@ -30,7 +30,7 @@ export type Round = {
 
 export type Poem = {
   id: string
-  round_id: string
+  roundId: string
   poet: string
   title: string
   body: string
@@ -39,7 +39,7 @@ export type Poem = {
 
 export type FreePoem = {
   id: string
-  quarter_id: string
+  quarterId: string
   poet: string
   title: string
   body: string
