@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { db, Quarter, Round, Poem, FreePoem } from '@/lib/firebase'
+import { db, Quarter, Round, Poem, FreePoem, GalleryItem } from '@/lib/firebase'
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
   doc, query, orderBy
@@ -36,7 +36,7 @@ const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: 
   ],
 }
 
-type View = 'cover' | 'toc' | 'book' | 'edit'
+type View = 'cover' | 'toc' | 'book' | 'gallery' | 'edit'
 type TabName = 'quarters' | 'rounds' | 'poems' | 'free'
 type PageItem = { type: string; id: string; [key: string]: unknown }
 
@@ -56,6 +56,7 @@ export default function SihwaApp() {
   const [rounds, setRounds] = useState<Round[]>([])
   const [poems, setPoems] = useState<Poem[]>([])
   const [freePoems, setFreePoems] = useState<FreePoem[]>([])
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([])
 
   const [currentView, setCurrentView] = useState<View>('cover')
   const [viewMode, setViewMode] = useState<'scroll' | 'page'>('scroll')
@@ -95,6 +96,8 @@ export default function SihwaApp() {
   const [pBody, setPBody] = useState('')
   const [pOrder, setPOrder] = useState(0)
 
+  const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null)
+
   const [showDelModal, setShowDelModal] = useState(false)
   const [deletingType, setDeletingType] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -120,20 +123,23 @@ export default function SihwaApp() {
   // Load data
   const loadAll = useCallback(async () => {
     try {
-      const [qSnap, rSnap, pSnap, fSnap] = await Promise.all([
+      const [qSnap, rSnap, pSnap, fSnap, gSnap] = await Promise.all([
         getDocs(query(collection(db, 'quarters'), orderBy('order'))),
         getDocs(query(collection(db, 'rounds'), orderBy('order'))),
         getDocs(query(collection(db, 'poems'), orderBy('order'))),
-        getDocs(query(collection(db, 'free_poems'), orderBy('order'))),
+        getDocs(query(collection(db, 'freePoems'), orderBy('order'))),
+        getDocs(query(collection(db, 'gallery'), orderBy('order'))),
       ])
       const q = qSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Quarter[]
       const r = rSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Round[]
       const p = pSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Poem[]
       const f = fSnap.docs.map(d => ({ id: d.id, ...d.data() })) as FreePoem[]
+      const g = gSnap.docs.map(d => ({ id: d.id, ...d.data() })) as GalleryItem[]
       if (q.length || p.length) {
         setQuarters(q); setRounds(r); setPoems(p); setFreePoems(f)
         saveSnapshot(q, r, p, f)
       }
+      setGalleryItems(g)
     } catch { /* Firebase 미연결 시 스냅샷/샘플 사용 */ }
   }, [])
 
@@ -305,8 +311,8 @@ export default function SihwaApp() {
     try {
       if (pType === 'free') {
         const data = { quarter_id: pQuarterId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
-        if (editingFreePoemId) await updateDoc(doc(db, 'free_poems', editingFreePoemId), data)
-        else await addDoc(collection(db, 'free_poems'), data)
+        if (editingFreePoemId) await updateDoc(doc(db, 'freePoems', editingFreePoemId), data)
+        else await addDoc(collection(db, 'freePoems'), data)
       } else {
         const data = { round_id: pRoundId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
         if (editingPoemId) await updateDoc(doc(db, 'poems', editingPoemId), data)
@@ -323,7 +329,7 @@ export default function SihwaApp() {
 
   const confirmDelete = async () => {
     if (!deletingId) return
-    const tbl = deletingType === 'quarter' ? 'quarters' : deletingType === 'round' ? 'rounds' : deletingType === 'freePoem' ? 'free_poems' : 'poems'
+    const tbl = deletingType === 'quarter' ? 'quarters' : deletingType === 'round' ? 'rounds' : deletingType === 'freePoem' ? 'freePoems' : 'poems'
     try {
       await deleteDoc(doc(db, tbl, deletingId))
       setShowDelModal(false); setDeletingType(null); setDeletingId(null)
@@ -391,6 +397,7 @@ export default function SihwaApp() {
         <div className="tb-title">시화 詩和</div>
         <button className={`tb-btn${currentView === 'toc' ? ' active' : ''}`} onClick={() => showView('toc')}>차례</button>
         <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={() => showView('book')}>읽기</button>
+        <button className={`tb-btn${currentView === 'gallery' ? ' active' : ''}`} onClick={() => showView('gallery')}>갤러리</button>
         <button className={`tb-btn${editMode ? ' active' : ''}`} onClick={tryEditMode}>편집</button>
       </div>
 
@@ -549,11 +556,60 @@ export default function SihwaApp() {
           </div>
         </div>
 
+        {/* GALLERY VIEW */}
+        <div id="gallery-view" className={currentView === 'gallery' ? 'active' : ''}>
+          <div id="gallery-body">
+            {!galleryItems.length ? (
+              <div className="empty-state" style={{ minHeight: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                아직 등록된 이미지가 없어요.
+              </div>
+            ) : (
+              quarters.sort((a, b) => a.order - b.order).map((q, qi) => {
+                const gItems = galleryItems.filter(g => g.quarterId === q.id).sort((a, b) => a.order - b.order)
+                if (!gItems.length) return null
+                return (
+                  <div key={q.id} className="gallery-quarter">
+                    <div className="gallery-quarter-label">{qi + 1}분기 — {q.title}</div>
+                    <div className="gallery-grid">
+                      {gItems.map(g => (
+                        <div key={g.id} className="gallery-card" onClick={() => setLightboxItem(g)}>
+                          {g.imageUrl
+                            ? <div className="gallery-card-img"><img src={g.imageUrl} loading="lazy" alt={g.title} /></div>
+                            : <div className="gallery-card-img-placeholder">이미지 없음</div>
+                          }
+                          <div className="gallery-card-body">
+                            <span className={`gallery-type-badge ${{ illust: 'badge-illust', bg: 'badge-bg', etc: 'badge-etc' }[g.type] || 'badge-etc'}`}>
+                              {{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[g.type] || '기타'}
+                            </span>
+                            <div className="gallery-card-title">{g.title}</div>
+                            {g.note && <div className="gallery-card-note">{g.note}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+
+        {/* GALLERY LIGHTBOX */}
+        {lightboxItem && (
+          <div id="gallery-lightbox" className="active" onClick={() => setLightboxItem(null)}>
+            <button id="lb-close" onClick={() => setLightboxItem(null)}>✕</button>
+            {lightboxItem.imageUrl && <img id="lb-img" src={lightboxItem.imageUrl} alt={lightboxItem.title} />}
+            <div id="lb-title">{lightboxItem.title}</div>
+            <div id="lb-tag">{{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[lightboxItem.type] || '기타'}</div>
+            {lightboxItem.note && <div id="lb-note">{lightboxItem.note}</div>}
+          </div>
+        )}
+
         {/* EDIT PANEL */}
         <div id="edit-panel" className={currentView === 'edit' ? 'active' : ''}>
-          <div className="supabase-notice">
-            <strong>Supabase 연결</strong> — <code>.env.local</code>에 <code>NEXT_PUBLIC_SUPABASE_URL</code>과 <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>를 설정하세요.
-            테이블: <code>quarters</code> · <code>rounds</code> · <code>poems</code> · <code>free_poems</code>
+          <div className="firebase-notice">
+            <strong>Firebase 연결</strong> — <code>.env.local</code>에 Firebase 설정값을 입력하세요.
+            컬렉션: <code>quarters</code> · <code>rounds</code> · <code>poems</code> · <code>freePoems</code> · <code>gallery</code>
           </div>
           <div className="edit-tabs">
             {(['quarters', 'rounds', 'poems', 'free'] as TabName[]).map(t => (

@@ -45,3 +45,13 @@ export type FreePoem = {
   body: string
   order: number
 }
+
+export type GalleryItem = {
+  id: string
+  quarterId: string
+  type: 'illust' | 'bg' | 'etc'
+  title: string
+  imageUrl?: string
+  note?: string
+  order: number
+}
