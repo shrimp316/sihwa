@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find . -type f ! -path './.git/*' -exec du -h {} \\\\;)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(mkdir -p /tmp/sihwa-backup)",
+      "Bash(cp icon-192x192.png icon-512x512.png /tmp/sihwa-backup/)",
+      "Bash(rm index.html manifest.json service-worker.js)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
