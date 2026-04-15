@@ -1,7 +1,12 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { supabase, Quarter, Round, Poem, FreePoem } from '@/lib/supabase'
+import { db, storage, Quarter, Round, Poem, FreePoem, GalleryItem } from '@/lib/firebase'
+import {
+  collection, getDocs, addDoc, updateDoc, deleteDoc,
+  doc, query, orderBy
+} from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const EDIT_PASSWORD = process.env.NEXT_PUBLIC_EDIT_PASSWORD || 'tlghk2026'
 const SNAPSHOT_KEY = 'sihwa_snapshot'
@@ -12,28 +17,28 @@ const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: 
     { id: 'q2', title: '관계', order: 1 },
   ],
   rounds: [
-    { id: 'r1', title: '봄', num: 1, quarter_id: 'q1', order: 0 },
-    { id: 'r2', title: '여름', num: 2, quarter_id: 'q1', order: 1 },
-    { id: 'r3', title: '처음', num: 3, quarter_id: 'q2', order: 0 },
-    { id: 'r4', title: '이별', num: 4, quarter_id: 'q2', order: 1 },
+    { id: 'r1', title: '봄', num: 1, quarterId: 'q1', order: 0 },
+    { id: 'r2', title: '여름', num: 2, quarterId: 'q1', order: 1 },
+    { id: 'r3', title: '처음', num: 3, quarterId: 'q2', order: 0 },
+    { id: 'r4', title: '이별', num: 4, quarterId: 'q2', order: 1 },
   ],
   poems: [
     {
-      id: 'p1', round_id: 'r1', poet: '김하늘', title: '봄의 기억', order: 0,
+      id: 'p1', roundId: 'r1', poet: '김하늘', title: '봄의 기억', order: 0,
       body: '봄이 오면 나는 늘\n창문 하나를 더 열어두었다\n\n바람이 커튼을 밀어내고\n그 틈으로 햇빛이 들어와\n방 안 가득 쌓인 먼지들을\n하나씩 들어 올리던 날\n\n너는 그 먼지들 사이에 있었다',
     },
-    { id: 'p2', round_id: 'r1', poet: '이서준', title: '연두색 오후', order: 1, body: '연두색이 번지던 오후\n나는 창가에 앉아\n아무것도 하지 않았다\n\n그게 가장 봄다운 일이었다' },
-    { id: 'p3', round_id: 'r2', poet: '박지유', title: '여름 끝에서', order: 0, body: '여름은 늘 너무 갑자기 끝난다\n분명 뜨거웠는데\n어느 날 보면 이미 식어있어\n\n우리가 그랬던 것처럼' },
-    { id: 'p4', round_id: 'r3', poet: '최민아', title: '처음 본 얼굴', order: 0, body: '처음 본 얼굴인데\n어딘가 낯이 익었다\n\n아마도 내가 오래\n기다려온 얼굴이라서' },
-    { id: 'p5', round_id: 'r4', poet: '정우찬', title: '이별의 문법', order: 0, body: '이별에도 문법이 있다면\n주어는 언제나 둘이고\n동사는 언제나 하나다\n\n우리는 같은 문장을\n다른 시제로 읽었다' },
+    { id: 'p2', roundId: 'r1', poet: '이서준', title: '연두색 오후', order: 1, body: '연두색이 번지던 오후\n나는 창가에 앉아\n아무것도 하지 않았다\n\n그게 가장 봄다운 일이었다' },
+    { id: 'p3', roundId: 'r2', poet: '박지유', title: '여름 끝에서', order: 0, body: '여름은 늘 너무 갑자기 끝난다\n분명 뜨거웠는데\n어느 날 보면 이미 식어있어\n\n우리가 그랬던 것처럼' },
+    { id: 'p4', roundId: 'r3', poet: '최민아', title: '처음 본 얼굴', order: 0, body: '처음 본 얼굴인데\n어딘가 낯이 익었다\n\n아마도 내가 오래\n기다려온 얼굴이라서' },
+    { id: 'p5', roundId: 'r4', poet: '정우찬', title: '이별의 문법', order: 0, body: '이별에도 문법이 있다면\n주어는 언제나 둘이고\n동사는 언제나 하나다\n\n우리는 같은 문장을\n다른 시제로 읽었다' },
   ],
   freePoems: [
-    { id: 'f1', quarter_id: 'q1', poet: '오하린', title: '여백', order: 0, body: '아무것도 쓰지 않은 페이지가\n가장 많은 말을 한다' },
+    { id: 'f1', quarterId: 'q1', poet: '오하린', title: '여백', order: 0, body: '아무것도 쓰지 않은 페이지가\n가장 많은 말을 한다' },
   ],
 }
 
-type View = 'cover' | 'toc' | 'book' | 'edit'
-type TabName = 'quarters' | 'rounds' | 'poems' | 'free'
+type View = 'cover' | 'toc' | 'book' | 'gallery' | 'edit'
+type TabName = 'quarters' | 'rounds' | 'poems' | 'free' | 'gallery'
 type PageItem = { type: string; id: string; [key: string]: unknown }
 
 function loadSnapshot() {
@@ -52,6 +57,7 @@ export default function SihwaApp() {
   const [rounds, setRounds] = useState<Round[]>([])
   const [poems, setPoems] = useState<Poem[]>([])
   const [freePoems, setFreePoems] = useState<FreePoem[]>([])
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([])
 
   const [currentView, setCurrentView] = useState<View>('cover')
   const [viewMode, setViewMode] = useState<'scroll' | 'page'>('scroll')
@@ -91,6 +97,20 @@ export default function SihwaApp() {
   const [pBody, setPBody] = useState('')
   const [pOrder, setPOrder] = useState(0)
 
+  const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null)
+
+  const [showGalleryModal, setShowGalleryModal] = useState(false)
+  const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null)
+  const [gQuarterId, setGQuarterId] = useState('')
+  const [gTitle, setGTitle] = useState('')
+  const [gType, setGType] = useState<'illust' | 'bg' | 'etc'>('illust')
+  const [gNote, setGNote] = useState('')
+  const [gImageUrl, setGImageUrl] = useState('')
+  const [gOrder, setGOrder] = useState(0)
+  const [gUploading, setGUploading] = useState(false)
+  const gFileRef = useRef<HTMLInputElement>(null)
+  const gTitleRef = useRef<HTMLInputElement>(null)
+
   const [showDelModal, setShowDelModal] = useState(false)
   const [deletingType, setDeletingType] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -107,31 +127,33 @@ export default function SihwaApp() {
 
   // Helpers
   const getRoundsOf = useCallback((qid: string) =>
-    rounds.filter(r => r.quarter_id === qid).sort((a, b) => a.order - b.order), [rounds])
+    rounds.filter(r => r.quarterId === qid).sort((a, b) => a.order - b.order), [rounds])
   const getPoemsOf = useCallback((rid: string) =>
-    poems.filter(p => p.round_id === rid).sort((a, b) => a.order - b.order), [poems])
+    poems.filter(p => p.roundId === rid).sort((a, b) => a.order - b.order), [poems])
   const getFreeOf = useCallback((qid: string) =>
-    freePoems.filter(f => f.quarter_id === qid).sort((a, b) => a.order - b.order), [freePoems])
+    freePoems.filter(f => f.quarterId === qid).sort((a, b) => a.order - b.order), [freePoems])
 
   // Load data
   const loadAll = useCallback(async () => {
-    if (!supabase) return
     try {
-      const [qRes, rRes, pRes, fRes] = await Promise.all([
-        supabase.from('quarters').select('*').order('order'),
-        supabase.from('rounds').select('*').order('order'),
-        supabase.from('poems').select('*').order('order'),
-        supabase.from('free_poems').select('*').order('order'),
+      const [qSnap, rSnap, pSnap, fSnap, gSnap] = await Promise.all([
+        getDocs(query(collection(db, 'quarters'), orderBy('order'))),
+        getDocs(query(collection(db, 'rounds'), orderBy('order'))),
+        getDocs(query(collection(db, 'poems'), orderBy('order'))),
+        getDocs(query(collection(db, 'freePoems'), orderBy('order'))),
+        getDocs(query(collection(db, 'gallery'), orderBy('order'))),
       ])
-      const q = qRes.data || []
-      const r = rRes.data || []
-      const p = pRes.data || []
-      const f = fRes.data || []
+      const q = qSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Quarter[]
+      const r = rSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Round[]
+      const p = pSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Poem[]
+      const f = fSnap.docs.map(d => ({ id: d.id, ...d.data() })) as FreePoem[]
+      const g = gSnap.docs.map(d => ({ id: d.id, ...d.data() })) as GalleryItem[]
       if (q.length || p.length) {
         setQuarters(q); setRounds(r); setPoems(p); setFreePoems(f)
         saveSnapshot(q, r, p, f)
       }
-    } catch { /* Supabase 미연결 시 스냅샷/샘플 사용 */ }
+      setGalleryItems(g)
+    } catch { /* Firebase 미연결 시 스냅샷/샘플 사용 */ }
   }, [])
 
   useEffect(() => {
@@ -158,19 +180,19 @@ export default function SihwaApp() {
   const buildPageItems = useCallback((q: Quarter[], r: Round[], p: Poem[], f: FreePoem[]) => {
     const items: PageItem[] = []
     q.sort((a, b) => a.order - b.order).forEach(quarter => {
-      const qRounds = r.filter(x => x.quarter_id === quarter.id).sort((a, b) => a.order - b.order)
-      const hasPoems = qRounds.some(round => p.some(poem => poem.round_id === round.id))
-      const hasFree = f.some(fp => fp.quarter_id === quarter.id)
+      const qRounds = r.filter(x => x.quarterId === quarter.id).sort((a, b) => a.order - b.order)
+      const hasPoems = qRounds.some(round => p.some(poem => poem.roundId === round.id))
+      const hasFree = f.some(fp => fp.quarterId === quarter.id)
       if (!hasPoems && !hasFree) return
       items.push({ type: 'quarter', id: quarter.id, quarter })
       if (quarter.intro) items.push({ type: 'quarter-intro', id: `intro-${quarter.id}`, quarter })
       qRounds.forEach(round => {
-        const rPoems = p.filter(x => x.round_id === round.id).sort((a, b) => a.order - b.order)
+        const rPoems = p.filter(x => x.roundId === round.id).sort((a, b) => a.order - b.order)
         if (!rPoems.length) return
         items.push({ type: 'round', id: round.id, round, quarter })
         rPoems.forEach(poem => items.push({ type: 'poem', id: poem.id, poem, round, quarter }))
       })
-      const fPoems = f.filter(x => x.quarter_id === quarter.id).sort((a, b) => a.order - b.order)
+      const fPoems = f.filter(x => x.quarterId === quarter.id).sort((a, b) => a.order - b.order)
       if (fPoems.length) {
         items.push({ type: 'free-section', id: `free-${quarter.id}`, quarter })
         fPoems.forEach(fp => items.push({ type: 'free-poem', id: fp.id, freePoem: fp, quarter }))
@@ -230,16 +252,15 @@ export default function SihwaApp() {
 
   const saveQuarter = async () => {
     if (!qTitle.trim()) { alert('대주제를 입력해주세요.'); return }
-    if (!supabase) { alert('Supabase가 연결되지 않았어요. .env.local을 확인해주세요.'); return }
     const data = { title: qTitle.trim(), intro: qIntro.trim(), order: qOrder }
     try {
       if (editingQuarterId) {
-        await supabase.from('quarters').update(data).eq('id', editingQuarterId)
+        await updateDoc(doc(db, 'quarters', editingQuarterId), data)
       } else {
-        await supabase.from('quarters').insert(data)
+        await addDoc(collection(db, 'quarters'), data)
       }
       setShowQuarterModal(false); await loadAll()
-    } catch { alert('저장 실패: Supabase 설정을 확인해주세요.') }
+    } catch { alert('저장 실패: Firebase 설정을 확인해주세요.') }
   }
 
   // Round CRUD
@@ -248,7 +269,7 @@ export default function SihwaApp() {
     setEditingRoundId(id || null)
     if (id) {
       const r = rounds.find(x => x.id === id)!
-      setRQuarterId(r.quarter_id); setRNum(r.num); setRTitle(r.title); setROrder(r.order)
+      setRQuarterId(r.quarterId); setRNum(r.num); setRTitle(r.title); setROrder(r.order)
     } else {
       setRQuarterId(quarters[0].id); setRNum(rounds.length + 1); setRTitle(''); setROrder(rounds.length)
     }
@@ -258,13 +279,12 @@ export default function SihwaApp() {
 
   const saveRound = async () => {
     if (!rTitle.trim()) { alert('회차 시제를 입력해주세요.'); return }
-    if (!supabase) { alert('Supabase가 연결되지 않았어요.'); return }
-    const data = { quarter_id: rQuarterId, num: rNum, title: rTitle.trim(), order: rOrder }
+    const data = { quarterId: rQuarterId, num: rNum, title: rTitle.trim(), order: rOrder }
     try {
       if (editingRoundId) {
-        await supabase.from('rounds').update(data).eq('id', editingRoundId)
+        await updateDoc(doc(db, 'rounds', editingRoundId), data)
       } else {
-        await supabase.from('rounds').insert(data)
+        await addDoc(collection(db, 'rounds'), data)
       }
       setShowRoundModal(false); await loadAll()
     } catch { alert('저장 실패') }
@@ -277,7 +297,7 @@ export default function SihwaApp() {
     setPType('round')
     if (id) {
       const p = poems.find(x => x.id === id)!
-      setPRoundId(p.round_id); setPPoet(p.poet); setPTitle(p.title); setPBody(p.body); setPOrder(p.order)
+      setPRoundId(p.roundId); setPPoet(p.poet); setPTitle(p.title); setPBody(p.body); setPOrder(p.order)
     } else {
       setPRoundId(rounds[0].id); setPPoet(''); setPTitle(''); setPBody(''); setPOrder(poems.length)
     }
@@ -291,7 +311,7 @@ export default function SihwaApp() {
     setPType('free')
     if (id) {
       const f = freePoems.find(x => x.id === id)!
-      setPQuarterId(f.quarter_id); setPPoet(f.poet); setPTitle(f.title); setPBody(f.body); setPOrder(f.order)
+      setPQuarterId(f.quarterId); setPPoet(f.poet); setPTitle(f.title); setPBody(f.body); setPOrder(f.order)
     } else {
       setPQuarterId(quarters[0].id); setPPoet(''); setPTitle(''); setPBody(''); setPOrder(freePoems.length)
     }
@@ -301,16 +321,15 @@ export default function SihwaApp() {
 
   const savePoem = async () => {
     if (!pPoet.trim() || !pTitle.trim() || !pBody.trim()) { alert('시인, 제목, 본문은 필수입니다.'); return }
-    if (!supabase) { alert('Supabase가 연결되지 않았어요.'); return }
     try {
       if (pType === 'free') {
-        const data = { quarter_id: pQuarterId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
-        if (editingFreePoemId) await supabase.from('free_poems').update(data).eq('id', editingFreePoemId)
-        else await supabase.from('free_poems').insert(data)
+        const data = { quarterId: pQuarterId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
+        if (editingFreePoemId) await updateDoc(doc(db, 'freePoems', editingFreePoemId), data)
+        else await addDoc(collection(db, 'freePoems'), data)
       } else {
-        const data = { round_id: pRoundId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
-        if (editingPoemId) await supabase.from('poems').update(data).eq('id', editingPoemId)
-        else await supabase.from('poems').insert(data)
+        const data = { roundId: pRoundId, poet: pPoet.trim(), title: pTitle.trim(), body: pBody, order: pOrder }
+        if (editingPoemId) await updateDoc(doc(db, 'poems', editingPoemId), data)
+        else await addDoc(collection(db, 'poems'), data)
       }
       setShowPoemModal(false); await loadAll()
     } catch { alert('저장 실패') }
@@ -322,13 +341,54 @@ export default function SihwaApp() {
   }
 
   const confirmDelete = async () => {
-    if (!deletingId || !supabase) return
-    const tbl = deletingType === 'quarter' ? 'quarters' : deletingType === 'round' ? 'rounds' : deletingType === 'freePoem' ? 'free_poems' : 'poems'
+    if (!deletingId) return
+    const tbl = deletingType === 'quarter' ? 'quarters' : deletingType === 'round' ? 'rounds' : deletingType === 'freePoem' ? 'freePoems' : deletingType === 'gallery' ? 'gallery' : 'poems'
     try {
-      await supabase.from(tbl).delete().eq('id', deletingId)
+      await deleteDoc(doc(db, tbl, deletingId))
       setShowDelModal(false); setDeletingType(null); setDeletingId(null)
       await loadAll()
     } catch { alert('삭제 실패') }
+  }
+
+  // Gallery CRUD
+  const openGalleryModal = (id?: string) => {
+    if (!quarters.length) { alert('분기를 먼저 만들어주세요.'); return }
+    setEditingGalleryId(id || null)
+    if (id) {
+      const g = galleryItems.find(x => x.id === id)!
+      setGQuarterId(g.quarterId); setGTitle(g.title); setGType(g.type)
+      setGNote(g.note || ''); setGImageUrl(g.imageUrl || ''); setGOrder(g.order)
+    } else {
+      setGQuarterId(quarters[0].id); setGTitle(''); setGType('illust')
+      setGNote(''); setGImageUrl(''); setGOrder(galleryItems.length)
+    }
+    setGUploading(false)
+    setShowGalleryModal(true)
+    setTimeout(() => gTitleRef.current?.focus(), 100)
+  }
+
+  const saveGalleryItem = async () => {
+    if (!gTitle.trim()) { alert('제목을 입력해주세요.'); return }
+    let imageUrl = gImageUrl.trim()
+    const file = gFileRef.current?.files?.[0]
+    if (file) {
+      setGUploading(true)
+      try {
+        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`)
+        const snap = await uploadBytes(storageRef, file)
+        imageUrl = await getDownloadURL(snap.ref)
+      } catch (e) {
+        alert('이미지 업로드 실패')
+        setGUploading(false); return
+      }
+      setGUploading(false)
+    }
+    const data = { quarterId: gQuarterId, title: gTitle.trim(), type: gType, note: gNote.trim(), imageUrl, order: gOrder }
+    try {
+      if (editingGalleryId) await updateDoc(doc(db, 'gallery', editingGalleryId), data)
+      else await addDoc(collection(db, 'gallery'), data)
+      setShowGalleryModal(false); await loadAll()
+    } catch { alert('저장 실패') }
   }
 
   // Rendered cover poets
@@ -357,17 +417,17 @@ export default function SihwaApp() {
   }
 
   // Filter helpers for edit
-  const filteredRounds = filterRoundQuarter ? rounds.filter(r => r.quarter_id === filterRoundQuarter) : rounds
+  const filteredRounds = filterRoundQuarter ? rounds.filter(r => r.quarterId === filterRoundQuarter) : rounds
   const filteredPoems = (() => {
     let p = poems
     if (filterPoemQuarter) {
-      const qRounds = rounds.filter(r => r.quarter_id === filterPoemQuarter).map(r => r.id)
-      p = p.filter(x => qRounds.includes(x.round_id))
+      const qRounds = rounds.filter(r => r.quarterId === filterPoemQuarter).map(r => r.id)
+      p = p.filter(x => qRounds.includes(x.roundId))
     }
-    if (filterPoemRound) p = p.filter(x => x.round_id === filterPoemRound)
+    if (filterPoemRound) p = p.filter(x => x.roundId === filterPoemRound)
     return p
   })()
-  const filteredFreePoems = filterPoemQuarter ? freePoems.filter(f => f.quarter_id === filterPoemQuarter) : freePoems
+  const filteredFreePoems = filterPoemQuarter ? freePoems.filter(f => f.quarterId === filterPoemQuarter) : freePoems
 
   if (loading) {
     return (
@@ -391,6 +451,7 @@ export default function SihwaApp() {
         <div className="tb-title">시화 詩和</div>
         <button className={`tb-btn${currentView === 'toc' ? ' active' : ''}`} onClick={() => showView('toc')}>차례</button>
         <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={() => showView('book')}>읽기</button>
+        <button className={`tb-btn${currentView === 'gallery' ? ' active' : ''}`} onClick={() => showView('gallery')}>갤러리</button>
         <button className={`tb-btn${editMode ? ' active' : ''}`} onClick={tryEditMode}>편집</button>
       </div>
 
@@ -549,16 +610,65 @@ export default function SihwaApp() {
           </div>
         </div>
 
+        {/* GALLERY VIEW */}
+        <div id="gallery-view" className={currentView === 'gallery' ? 'active' : ''}>
+          <div id="gallery-body">
+            {!galleryItems.length ? (
+              <div className="empty-state" style={{ minHeight: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                아직 등록된 이미지가 없어요.
+              </div>
+            ) : (
+              quarters.sort((a, b) => a.order - b.order).map((q, qi) => {
+                const gItems = galleryItems.filter(g => g.quarterId === q.id).sort((a, b) => a.order - b.order)
+                if (!gItems.length) return null
+                return (
+                  <div key={q.id} className="gallery-quarter">
+                    <div className="gallery-quarter-label">{qi + 1}분기 — {q.title}</div>
+                    <div className="gallery-grid">
+                      {gItems.map(g => (
+                        <div key={g.id} className="gallery-card" onClick={() => setLightboxItem(g)}>
+                          {g.imageUrl
+                            ? <div className="gallery-card-img"><img src={g.imageUrl} loading="lazy" alt={g.title} /></div>
+                            : <div className="gallery-card-img-placeholder">이미지 없음</div>
+                          }
+                          <div className="gallery-card-body">
+                            <span className={`gallery-type-badge ${{ illust: 'badge-illust', bg: 'badge-bg', etc: 'badge-etc' }[g.type] || 'badge-etc'}`}>
+                              {{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[g.type] || '기타'}
+                            </span>
+                            <div className="gallery-card-title">{g.title}</div>
+                            {g.note && <div className="gallery-card-note">{g.note}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+
+        {/* GALLERY LIGHTBOX */}
+        {lightboxItem && (
+          <div id="gallery-lightbox" className="active" onClick={() => setLightboxItem(null)}>
+            <button id="lb-close" onClick={() => setLightboxItem(null)}>✕</button>
+            {lightboxItem.imageUrl && <img id="lb-img" src={lightboxItem.imageUrl} alt={lightboxItem.title} />}
+            <div id="lb-title">{lightboxItem.title}</div>
+            <div id="lb-tag">{{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[lightboxItem.type] || '기타'}</div>
+            {lightboxItem.note && <div id="lb-note">{lightboxItem.note}</div>}
+          </div>
+        )}
+
         {/* EDIT PANEL */}
         <div id="edit-panel" className={currentView === 'edit' ? 'active' : ''}>
-          <div className="supabase-notice">
-            <strong>Supabase 연결</strong> — <code>.env.local</code>에 <code>NEXT_PUBLIC_SUPABASE_URL</code>과 <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>를 설정하세요.
-            테이블: <code>quarters</code> · <code>rounds</code> · <code>poems</code> · <code>free_poems</code>
+          <div className="firebase-notice">
+            <strong>Firebase 연결</strong> — <code>.env.local</code>에 Firebase 설정값을 입력하세요.
+            컬렉션: <code>quarters</code> · <code>rounds</code> · <code>poems</code> · <code>freePoems</code> · <code>gallery</code>
           </div>
           <div className="edit-tabs">
-            {(['quarters', 'rounds', 'poems', 'free'] as TabName[]).map(t => (
+            {(['quarters', 'rounds', 'poems', 'free', 'gallery'] as TabName[]).map(t => (
               <button key={t} className={`edit-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
-                {{ quarters: '분기 관리', rounds: '회차 관리', poems: '시 관리', free: '자유시' }[t]}
+                {{ quarters: '분기 관리', rounds: '회차 관리', poems: '시 관리', free: '자유시', gallery: '갤러리' }[t]}
               </button>
             ))}
           </div>
@@ -601,7 +711,7 @@ export default function SihwaApp() {
                 </select>
               </div>
               {filteredRounds.sort((a, b) => a.order - b.order).map(r => {
-                const q = quarters.find(x => x.id === r.quarter_id)
+                const q = quarters.find(x => x.id === r.quarterId)
                 return (
                   <div key={r.id} className="edit-card">
                     <div className="edit-card-info">
@@ -633,12 +743,12 @@ export default function SihwaApp() {
                 </select>
                 <select className="filter-select" value={filterPoemRound} onChange={e => setFilterPoemRound(e.target.value)}>
                   <option value="">전체 회차</option>
-                  {(filterPoemQuarter ? rounds.filter(r => r.quarter_id === filterPoemQuarter) : rounds)
+                  {(filterPoemQuarter ? rounds.filter(r => r.quarterId === filterPoemQuarter) : rounds)
                     .map(r => <option key={r.id} value={r.id}>{r.num}회차 — {r.title}</option>)}
                 </select>
               </div>
               {filteredPoems.sort((a, b) => a.order - b.order).map(p => {
-                const r = rounds.find(x => x.id === p.round_id)
+                const r = rounds.find(x => x.id === p.roundId)
                 return (
                   <div key={p.id} className="edit-card">
                     <div className="edit-card-info">
@@ -665,7 +775,7 @@ export default function SihwaApp() {
                 <button className="edit-add-btn" onClick={() => openFreePoemModal()}>+ 자유시 추가</button>
               </div>
               {filteredFreePoems.sort((a, b) => a.order - b.order).map(f => {
-                const q = quarters.find(x => x.id === f.quarter_id)
+                const q = quarters.find(x => x.id === f.quarterId)
                 return (
                   <div key={f.id} className="edit-card">
                     <div className="edit-card-info">
@@ -681,6 +791,34 @@ export default function SihwaApp() {
                 )
               })}
               {!filteredFreePoems.length && <div className="empty-state">자유시가 없어요.</div>}
+            </div>
+          )}
+
+          {/* 갤러리 탭 */}
+          {activeTab === 'gallery' && (
+            <div>
+              <div className="edit-section-header">
+                <div className="edit-section-title">갤러리 관리</div>
+                <button className="edit-add-btn" onClick={() => openGalleryModal()}>+ 이미지 추가</button>
+              </div>
+              {galleryItems.sort((a, b) => a.order - b.order).map(g => {
+                const q = quarters.find(x => x.id === g.quarterId)
+                const typeLabel = { illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[g.type] || '기타'
+                return (
+                  <div key={g.id} className="edit-card">
+                    <div className="edit-card-info">
+                      <div className="edit-card-title">{g.title}</div>
+                      <div className="edit-card-sub">{typeLabel} · {q?.title || ''}</div>
+                      {g.note && <div className="edit-card-preview">{g.note.slice(0, 60)}</div>}
+                    </div>
+                    <div className="edit-card-actions">
+                      <button className="ecard-btn" onClick={() => openGalleryModal(g.id)}>수정</button>
+                      <button className="ecard-btn del" onClick={() => openDelModal('gallery', g.id, g.title)}>삭제</button>
+                    </div>
+                  </div>
+                )
+              })}
+              {!galleryItems.length && <div className="empty-state">갤러리에 이미지가 없어요.</div>}
             </div>
           )}
         </div>
@@ -803,7 +941,7 @@ export default function SihwaApp() {
                 <label className="form-label">회차</label>
                 <select className="form-select" value={pRoundId} onChange={e => setPRoundId(e.target.value)}>
                   {quarters.map(q => {
-                    const qr = rounds.filter(r => r.quarter_id === q.id)
+                    const qr = rounds.filter(r => r.quarterId === q.id)
                     if (!qr.length) return null
                     return <optgroup key={q.id} label={q.title}>
                       {qr.map(r => <option key={r.id} value={r.id}>{r.num}회차 — {r.title}</option>)}
@@ -838,6 +976,54 @@ export default function SihwaApp() {
             <div className="modal-actions">
               <button className="modal-btn cancel" onClick={() => setShowPoemModal(false)}>취소</button>
               <button className="modal-btn confirm" onClick={savePoem}>저장</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GALLERY MODAL */}
+      {showGalleryModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowGalleryModal(false)}>
+          <div className="modal-box">
+            <div className="modal-title">{editingGalleryId ? '이미지 수정' : '이미지 추가'}</div>
+            <div className="form-group">
+              <label className="form-label">소속 분기</label>
+              <select className="form-select" value={gQuarterId} onChange={e => setGQuarterId(e.target.value)}>
+                {quarters.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">제목</label>
+              <input ref={gTitleRef} type="text" className="form-input" placeholder="이미지 제목" value={gTitle} onChange={e => setGTitle(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">용도</label>
+              <select className="form-select" value={gType} onChange={e => setGType(e.target.value as 'illust' | 'bg' | 'etc')}>
+                <option value="illust">시 삽화</option>
+                <option value="bg">배경 삽화</option>
+                <option value="etc">기타</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">주석 / 설명</label>
+              <textarea className="form-textarea" placeholder="이미지에 대한 설명이나 주석..." style={{ minHeight: 80 }} value={gNote} onChange={e => setGNote(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">이미지 파일 업로드</label>
+              <input ref={gFileRef} type="file" className="form-input" accept="image/*" style={{ padding: 6 }} />
+              {gUploading && <div style={{ fontSize: '0.75rem', color: 'var(--edit-gold)', marginTop: 4 }}>업로드 중...</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">또는 이미지 URL 직접 입력</label>
+              <input type="text" className="form-input" placeholder="https://..." value={gImageUrl} onChange={e => setGImageUrl(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">정렬 순서</label>
+              <input type="number" className="form-input" value={gOrder} onChange={e => setGOrder(Number(e.target.value))} />
+            </div>
+            <div className="modal-actions">
+              <button className="modal-btn cancel" onClick={() => setShowGalleryModal(false)}>취소</button>
+              <button className="modal-btn confirm" onClick={saveGalleryItem} disabled={gUploading}>저장</button>
             </div>
           </div>
         </div>
