@@ -19,6 +19,19 @@ const notoSansKR = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "글빛을 모아 담다 시화 詩和",
   description: "시화 詩和 — 글빛을 모아 담다",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "시화",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icon-192x192.png" }],
+  },
 };
 
 export default function RootLayout({
