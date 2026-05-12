@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { db, storage, Quarter, Round, Poem, FreePoem, GalleryItem } from '@/lib/firebase'
+import { db, storage, auth, Quarter, Round, Poem, FreePoem, GalleryItem } from '@/lib/firebase'
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
   doc, query, orderBy
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 
-const EDIT_PASSWORD = process.env.NEXT_PUBLIC_EDIT_PASSWORD || 'tlghk2026'
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 const SNAPSHOT_KEY = 'sihwa_snapshot'
 
 const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: FreePoem[] } = {
@@ -153,7 +154,7 @@ export default function SihwaApp() {
         saveSnapshot(q, r, p, f)
       }
       setGalleryItems(g)
-    } catch { /* Firebase 미연결 시 스냅샷/샘플 사용 */ }
+    } catch (e) { console.error('loadAll 실패:', e) }
   }, [])
 
   useEffect(() => {
@@ -223,16 +224,25 @@ export default function SihwaApp() {
     if (name !== 'book') window.scrollTo({ top: 0 })
   }
 
-  const tryEditMode = () => {
-    if (editMode) { setEditMode(false); showView('cover'); return }
+  const tryEditMode = async () => {
+    if (editMode) {
+      try { await signOut(auth) } catch (e) { console.error(e) }
+      setEditMode(false); showView('cover'); return
+    }
     setPwInput(''); setPwError(false); setShowPwModal(true)
     setTimeout(() => pwInputRef.current?.focus(), 100)
   }
 
-  const checkPassword = () => {
-    if (pwInput === EDIT_PASSWORD) {
+  const checkPassword = async () => {
+    if (!ADMIN_EMAIL) {
+      console.error('NEXT_PUBLIC_ADMIN_EMAIL env가 설정되지 않았습니다.')
+      setPwError(true); return
+    }
+    try {
+      await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pwInput)
       setShowPwModal(false); setEditMode(true); showView('edit')
-    } else {
+    } catch (e) {
+      console.error(e)
       setPwError(true)
     }
   }
@@ -260,7 +270,7 @@ export default function SihwaApp() {
         await addDoc(collection(db, 'quarters'), data)
       }
       setShowQuarterModal(false); await loadAll()
-    } catch { alert('저장 실패: Firebase 설정을 확인해주세요.') }
+    } catch (e) { console.error('saveQuarter 실패:', e); alert('저장 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e))) }
   }
 
   // Round CRUD
@@ -287,7 +297,7 @@ export default function SihwaApp() {
         await addDoc(collection(db, 'rounds'), data)
       }
       setShowRoundModal(false); await loadAll()
-    } catch { alert('저장 실패') }
+    } catch (e) { console.error('saveRound 실패:', e); alert('저장 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e))) }
   }
 
   // Poem CRUD
@@ -332,7 +342,7 @@ export default function SihwaApp() {
         else await addDoc(collection(db, 'poems'), data)
       }
       setShowPoemModal(false); await loadAll()
-    } catch { alert('저장 실패') }
+    } catch (e) { console.error('savePoem 실패:', e); alert('저장 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e))) }
   }
 
   // Delete
@@ -347,7 +357,7 @@ export default function SihwaApp() {
       await deleteDoc(doc(db, tbl, deletingId))
       setShowDelModal(false); setDeletingType(null); setDeletingId(null)
       await loadAll()
-    } catch { alert('삭제 실패') }
+    } catch (e) { console.error('confirmDelete 실패:', e); alert('삭제 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e))) }
   }
 
   // Gallery CRUD
@@ -378,7 +388,8 @@ export default function SihwaApp() {
         const snap = await uploadBytes(storageRef, file)
         imageUrl = await getDownloadURL(snap.ref)
       } catch (e) {
-        alert('이미지 업로드 실패')
+        console.error('이미지 업로드 실패:', e)
+        alert('이미지 업로드 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e)))
         setGUploading(false); return
       }
       setGUploading(false)
@@ -388,7 +399,7 @@ export default function SihwaApp() {
       if (editingGalleryId) await updateDoc(doc(db, 'gallery', editingGalleryId), data)
       else await addDoc(collection(db, 'gallery'), data)
       setShowGalleryModal(false); await loadAll()
-    } catch { alert('저장 실패') }
+    } catch (e) { console.error('saveGalleryItem 실패:', e); alert('저장 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e))) }
   }
 
   // Rendered cover poets
@@ -662,7 +673,7 @@ export default function SihwaApp() {
         {/* EDIT PANEL */}
         <div id="edit-panel" className={currentView === 'edit' ? 'active' : ''}>
           <div className="firebase-notice">
-            <strong>Firebase 연결</strong> — <code>.env.local</code>에 Firebase 설정값을 입력하세요.
+            <strong>Firebase 연결</strong> — <code>.env.local</code>에 Firebase 설정값과 <code>NEXT_PUBLIC_ADMIN_EMAIL</code>을 입력하세요.
             컬렉션: <code>quarters</code> · <code>rounds</code> · <code>poems</code> · <code>freePoems</code> · <code>gallery</code>
           </div>
           <div className="edit-tabs">
