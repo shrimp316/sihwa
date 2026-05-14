@@ -463,7 +463,7 @@ export default function Book({
               totalPages={total}
               data={data}
               frozen={false}
-              scrollable={bgL?.type === 'poem' || bgL?.type === 'free-poem'}
+              scrollable={bgL?.type === 'poem' || bgL?.type === 'free-poem' || bgL?.type === 'toc-quarter'}
             />
           </div>
         )}
@@ -474,7 +474,7 @@ export default function Book({
             totalPages={total}
             data={data}
             frozen={false}
-            scrollable={bgR?.type === 'poem' || bgR?.type === 'free-poem'}
+            scrollable={bgR?.type === 'poem' || bgR?.type === 'free-poem' || bgR?.type === 'toc-quarter'}
           />
         </div>
 
@@ -495,7 +495,7 @@ export default function Book({
                 totalPages={total}
                 data={data}
                 frozen={true}
-                scrollable={flipFront?.type === 'poem' || flipFront?.type === 'free-poem'}
+                scrollable={flipFront?.type === 'poem' || flipFront?.type === 'free-poem' || flipFront?.type === 'toc-quarter'}
                 scrollSnapshotRef={flipScrollSnapshotRef}
               />
               <div className="flip-shade flip-shade-front" />
@@ -507,7 +507,7 @@ export default function Book({
                 totalPages={total}
                 data={data}
                 frozen={true}
-                scrollable={flipBack?.type === 'poem' || flipBack?.type === 'free-poem'}
+                scrollable={flipBack?.type === 'poem' || flipBack?.type === 'free-poem' || flipBack?.type === 'toc-quarter'}
                 scrollSnapshotRef={flipScrollSnapshotRef}
               />
               <div className="flip-shade flip-shade-back" />

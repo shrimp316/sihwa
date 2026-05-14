@@ -409,7 +409,7 @@ body {
 /* Step 7: center the TOC list as a fixed-width column so dots stay visually
    coherent regardless of page width. */
 .toc-q-list    {
-  flex:1; overflow:hidden;
+  /* overflow는 부모 .page-scroll-shell이 담당 — 여기서 hidden 하면 스크롤 봉인됨 */
   max-width: 340px;
   width: 100%;
   margin: 0 auto;
