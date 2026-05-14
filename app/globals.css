@@ -675,3 +675,47 @@ body {
   .modal-box { padding: 18px 16px; }
   .qd-title, .rd-title { font-size: 110px; }
 }
+
+/* ── Wide viewport (PC / tablet landscape) — scale up book typography so
+   the page is comfortable to read and the denser pagination still feels
+   balanced. ── */
+@media (min-width: 900px) {
+  /* Spread mode (PC landscape) — each half-spread is a full page, can fit
+     much more text than phone landscape. */
+  .mode-spread .page-inner { padding: 48px 56px 56px; }
+  .mode-spread .page-inner-left  { padding-left: 64px; padding-right: 44px; }
+  .mode-spread .page-inner-right { padding-left: 44px; padding-right: 64px; }
+
+  .mode-spread .po-poet   { font-size: 11px; margin-bottom: 28px; }
+  .mode-spread .po-title  { font-size: 26px; margin-bottom: 32px; }
+  .mode-spread .po-rule   { width: 18px; margin-bottom: 32px; }
+  .mode-spread .po-body   { font-size: 15px; line-height: 2.4; max-width: 92%; }
+  .mode-spread .po-cont-header { margin-bottom: 28px; padding-bottom: 12px; }
+  .mode-spread .po-cont-title  { font-size: 14px; }
+  .mode-spread .po-cont-poet   { font-size: 10px; }
+  .mode-spread .po-continues   { font-size: 10px; }
+
+  .mode-spread .pg-poem   { padding-top: 6%; }
+
+  /* Quarter / round dividers — keep the dramatic big-grey type but scale up. */
+  .mode-spread .qd-title, .mode-spread .rd-title { font-size: 120px; }
+  .mode-spread .qd-eyebrow, .mode-spread .rd-eyebrow { font-size: 11px; margin-bottom: 24px; }
+
+  /* TOC pages on PC — comfortable list density. */
+  .mode-spread .toc-q-title { font-size: 24px; margin-bottom: 22px; }
+  .mode-spread .toc-q-eyebrow { font-size: 10px; margin-bottom: 10px; }
+  .mode-spread .toc-q-item-t { font-size: 15px; }
+  .mode-spread .toc-q-item-p { font-size: 11px; }
+
+  /* Book chrome on wide screens. */
+  .book-header { font-size: 10.5px; padding: 12px 32px 0; }
+  .nav-btn { font-size: 12.5px; padding: 8px 18px; }
+  .nav-indicator { font-size: 11.5px; }
+  .page-num { font-size: 10.5px; }
+  .book-nav { height: 64px; }
+
+  /* Single mode on a wide portrait device (uncommon — tablet portrait). */
+  .mode-single .page-inner { padding: 64px 80px 72px; }
+  .mode-single .po-body { font-size: 16px; line-height: 2.8; }
+  .mode-single .po-title { font-size: 26px; }
+}

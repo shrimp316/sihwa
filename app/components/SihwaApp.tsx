@@ -88,6 +88,7 @@ function SihwaAppInner() {
 
   // Book viewer state
   const [mode, setMode] = useState<'single' | 'spread'>('single')
+  const [isWide, setIsWide] = useState(false)
   const [bookIdx, setBookIdx] = useState(0)
   const [forcedIdx, setForcedIdx] = useState<number | undefined>(undefined)
   const [forceJumpToken, setForceJumpToken] = useState(0)
@@ -168,6 +169,17 @@ function SihwaAppInner() {
     return () => mql.removeEventListener('change', handler)
   }, [])
 
+  // Detect wide viewport (PC / tablet landscape) for denser pagination
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(min-width: 900px)')
+    const apply = (matches: boolean) => setIsWide(matches)
+    apply(mql.matches)
+    const handler = (e: MediaQueryListEvent) => apply(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
+
   // Restore last reading idx when mode (orientation) changes
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -188,10 +200,20 @@ function SihwaAppInner() {
     if (!quarters.length) return []
     const data = { quarters, rounds, poems, freePoems }
     if (mode === 'spread') {
-      return buildBookPages(data, { maxFirst: 4, maxCont: 6, chars: 20 })
+      // Wide viewport (PC, tablet landscape): denser pagination so each
+      // spread page actually fills with content. Phone landscape stays sparse.
+      return buildBookPages(
+        data,
+        isWide ? { maxFirst: 18, maxCont: 24, chars: 44 }
+               : { maxFirst: 4, maxCont: 6, chars: 20 },
+      )
     }
-    return buildBookPages(data, { maxFirst: 14, maxCont: 20, chars: 22 })
-  }, [quarters, rounds, poems, freePoems, mode])
+    return buildBookPages(
+      data,
+      isWide ? { maxFirst: 20, maxCont: 28, chars: 34 }
+             : { maxFirst: 14, maxCont: 20, chars: 22 },
+    )
+  }, [quarters, rounds, poems, freePoems, mode, isWide])
 
   const tocTitleIdx = useMemo(() => {
     const i = pages.findIndex(p => p.type === 'toc-title')
