@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Reference-only design handoff (not part of build)
+    "design_handoff_sihwa_book/**",
   ]),
 ]);
 

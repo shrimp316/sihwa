@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>시화 — 북 디자인 탐색</title>
+
+<!-- Pretendard Variable (Korean subset) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<!-- Noto Serif KR (fallback for any serif moments) -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@200;300;400&display=swap" rel="stylesheet" />
+
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #edece8; }
+  #root { width: 100%; height: 100vh; }
+  * { box-sizing: border-box; }
+  *::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+
+<script type="text/babel">
+
+
+// ─── Sample content (shared across all variants) ──────────────────────────
+const S = {
+  poets: '김하늘 · 이서준 · 박지유 · 최민아 · 정우찬 · 오하린',
+  poem: {
+    poet: '김하늘',
+    title: '봄의 기억',
+    body: '봄이 오면 나는 늘\n창문 하나를 더 열어두었다\n\n바람이 커튼을 밀어내고\n그 틈으로 햇빛이 들어와\n방 안 가득 쌓인 먼지들을\n하나씩 들어 올리던 날\n\n너는 그 먼지들 사이에 있었다'
+  },
+  toc: [
+  { round: '1회차', title: '봄', poems: [{ t: '봄의 기억', p: '김하늘' }, { t: '연두색 오후', p: '이서준' }] },
+  { round: '2회차', title: '여름', poems: [{ t: '여름 끝에서', p: '박지유' }] },
+  { round: '3회차', title: '처음', poems: [{ t: '처음 본 얼굴', p: '최민아' }] },
+  { round: '4회차', title: '이별', poems: [{ t: '이별의 문법', p: '정우찬' }] }]
+
+};
+const PRE = "'Pretendard Variable', 'Noto Sans KR', sans-serif";
+
+// ── Shared page wrapper (consistent shadow / clip) ────────────────────────
+function Page({ bg = '#fff', children, style = {} }) {
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: bg,
+      display: 'flex', flexDirection: 'column',
+      fontFamily: PRE, overflow: 'hidden',
+      ...style
+    }}>
+      {children}
+    </div>);
+
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VARIANT A — 백 (Baek)
+// Pure white · ultra-light Pretendard · vast whitespace · monochrome
+// ═══════════════════════════════════════════════════════════════════════════
+
+function A_Cover() {
+  return (
+    <Page bg="#ffffff" style={{ alignItems: 'center', justifyContent: 'center', padding: '44px 40px', position: 'relative' }}>
+      {/* top edge rule */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, background: '#111' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1.5, background: '#111' }} />
+
+      <div style={{ fontWeight: 200, fontSize: 11, letterSpacing: '0.64em', color: '#c0c0c0', marginBottom: 52, textTransform: 'uppercase' }}>공동시집</div>
+      <div style={{ fontWeight: 100, fontSize: 104, letterSpacing: '-0.02em', color: '#111', lineHeight: 0.88, fontFamily: "Tahoma" }}>시화</div>
+      <div style={{ fontWeight: 200, fontSize: 14, letterSpacing: '0.36em', color: '#c8c8c8', marginTop: 12, marginBottom: 60 }}>詩和</div>
+      <div style={{ width: 20, height: 1, background: '#e0e0e0', marginBottom: 32 }} />
+      <div style={{ fontWeight: 200, fontSize: 10, letterSpacing: '0.52em', color: '#c0c0c0', textTransform: 'uppercase', marginBottom: 16 }}>글빛을 모아 담다</div>
+      <div style={{ fontWeight: 100, fontSize: 10, letterSpacing: '0.36em', color: '#d0d0d0' }}>{S.poets}</div>
+      <div style={{ marginTop: 'auto', fontWeight: 200, fontSize: 10, letterSpacing: '0.60em', color: '#d8d8d8' }}>2026</div>
+    </Page>);
+
+}
+
+function A_Divider() {
+  return (
+    <Page bg="#ffffff" style={{ padding: '44px 40px', justifyContent: 'center' }}>
+      <div style={{ fontWeight: 100, fontSize: 11, letterSpacing: '0.64em', color: '#cccccc', textTransform: 'uppercase', marginBottom: 24 }}>1회차</div>
+      {/* huge ghost title */}
+      <div style={{ fontWeight: 100, fontSize: 140, color: '#f0f0f0', lineHeight: 0.88, letterSpacing: '-0.04em', userSelect: 'none', marginBottom: 4, marginLeft: -6 }}>봄</div>
+      <div style={{ width: 20, height: 1, background: '#111', marginTop: 16, marginBottom: 20 }} />
+      <div style={{ fontWeight: 200, fontSize: 11, letterSpacing: '0.28em', color: '#aaa' }}>Season / Spring · 계절 1분기</div>
+    </Page>);
+
+}
+
+function A_Poem() {
+  return (
+    <Page bg="#ffffff" style={{ padding: '56px 40px 44px' }}>
+      <div style={{ fontWeight: 200, fontSize: 8.5, letterSpacing: '0.60em', color: '#ccc', textTransform: 'uppercase', marginBottom: 24 }}>{S.poem.poet}</div>
+      <div style={{ fontWeight: 400, fontSize: 21, letterSpacing: '0.02em', color: '#111', lineHeight: 1.4, marginBottom: 32 }}>{S.poem.title}</div>
+      <div style={{ width: 14, height: 0.5, background: '#ddd', marginBottom: 32 }} />
+      <div style={{ fontWeight: 200, fontSize: 13, lineHeight: 3.0, color: '#555', whiteSpace: 'pre-line', flex: 1, letterSpacing: '0.01em' }}>{S.poem.body}</div>
+      <div style={{ fontWeight: 200, fontSize: 9, letterSpacing: '0.36em', color: '#ccc', textAlign: 'right', marginTop: 24 }}>1</div>
+    </Page>);
+
+}
+
+function A_Toc() {
+  return (
+    <Page bg="#ffffff" style={{ padding: '56px 40px' }}>
+      <div style={{ fontWeight: 200, fontSize: 11, letterSpacing: '0.64em', color: '#bbb', textTransform: 'uppercase', marginBottom: 40 }}>차 례</div>
+      {S.toc.map((r, i) =>
+      <div key={i} style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 9.5, letterSpacing: '0.36em', color: '#111', textTransform: 'uppercase', minWidth: 48 }}>{r.round}</div>
+            <div style={{ fontWeight: 200, fontSize: 10, letterSpacing: '0.16em', color: '#bbb' }}>{r.title}</div>
+          </div>
+          {r.poems.map((p, j) =>
+        <div key={j} style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '4px 0', borderBottom: '0.5px solid #f2f2f2' }}>
+              <div style={{ fontWeight: 300, fontSize: 12.5, color: '#444', flex: 1 }}>{p.t}</div>
+              <div style={{ fontWeight: 200, fontSize: 9.5, color: '#bbb', letterSpacing: '0.08em' }}>{p.p}</div>
+            </div>
+        )}
+        </div>
+      )}
+    </Page>);
+
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VARIANT B — 절 (Jeol)
+// Editorial · black structural bars · bold/light contrast · inverted sections
+// ═══════════════════════════════════════════════════════════════════════════
+
+function B_Cover() {
+  return (
+    <Page bg="#111111" style={{ padding: 0 }}>
+      {/* upper dark — title */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '40px 32px 22px' }}>
+        <div style={{ fontWeight: 900, fontSize: 84, letterSpacing: '-0.04em', color: '#ffffff', lineHeight: 0.86 }}>시화</div>
+        <div style={{ fontWeight: 300, fontSize: 13, letterSpacing: '0.36em', color: 'rgba(255,255,255,0.35)', marginTop: 12 }}>詩和</div>
+      </div>
+      {/* divider */}
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', margin: '0 32px' }} />
+      {/* lower section */}
+      <div style={{ padding: '20px 32px 36px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontWeight: 200, fontSize: 10, letterSpacing: '0.44em', color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase' }}>글빛을 모아 담다</div>
+        <div style={{ fontWeight: 200, fontSize: 10, letterSpacing: '0.26em', color: 'rgba(255,255,255,0.22)' }}>{S.poets}</div>
+        <div style={{ marginTop: 8, fontWeight: 300, fontSize: 10, letterSpacing: '0.56em', color: 'rgba(255,255,255,0.18)' }}>2026</div>
+      </div>
+    </Page>);
+
+}
+
+function B_Divider() {
+  return (
+    <Page bg="#f4f4f2" style={{ padding: 0 }}>
+      {/* black header bar */}
+      <div style={{ background: '#111', padding: '16px 32px', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+        <div style={{ fontWeight: 700, fontSize: 10, letterSpacing: '0.52em', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>1회차</div>
+        <div style={{ fontWeight: 200, fontSize: 10, letterSpacing: '0.28em', color: 'rgba(255,255,255,0.3)' }}>계절 · 1분기</div>
+      </div>
+      {/* main */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 32px' }}>
+        <div style={{ fontWeight: 800, fontSize: 100, letterSpacing: '-0.04em', color: '#111', lineHeight: 0.86, marginBottom: 18 }}>봄</div>
+        <div style={{ fontWeight: 300, fontSize: 13, letterSpacing: '0.16em', color: '#999' }}>Spring · Season</div>
+      </div>
+      {/* footer */}
+      <div style={{ borderTop: '1px solid #e4e4e2', padding: '14px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 200, fontSize: 9.5, letterSpacing: '0.36em', color: '#aaa', textTransform: 'uppercase' }}>시화 詩和</div>
+        <div style={{ fontWeight: 800, fontSize: 10, letterSpacing: '0.06em', color: '#111' }}>1분기</div>
+      </div>
+    </Page>);
+
+}
+
+function B_Poem() {
+  return (
+    <Page bg="#f4f4f2" style={{ padding: 0 }}>
+      {/* poet bar (inverted) */}
+      <div style={{ background: '#111', padding: '10px 32px' }}>
+        <div style={{ fontWeight: 400, fontSize: 9.5, letterSpacing: '0.48em', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase' }}>{S.poem.poet}</div>
+      </div>
+      {/* content */}
+      <div style={{ flex: 1, padding: '28px 32px 24px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.01em', color: '#111', marginBottom: 26, lineHeight: 1.3 }}>{S.poem.title}</div>
+        <div style={{ fontWeight: 300, fontSize: 13, lineHeight: 2.8, color: '#444', whiteSpace: 'pre-line', flex: 1 }}>{S.poem.body}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 16 }}>
+          <div style={{ fontWeight: 200, fontSize: 9.5, letterSpacing: '0.36em', color: '#ccc', textTransform: 'uppercase' }}>봄의 기억</div>
+          <div style={{ fontWeight: 900, fontSize: 11, color: '#111', letterSpacing: '0.04em' }}>01</div>
+        </div>
+      </div>
+    </Page>);
+
+}
+
+function B_Toc() {
+  return (
+    <Page bg="#f4f4f2" style={{ padding: 0 }}>
+      <div style={{ background: '#111', padding: '18px 32px' }}>
+        <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: '0.44em', color: '#fff', textTransform: 'uppercase' }}>차 례</div>
+      </div>
+      <div style={{ flex: 1, padding: '20px 32px', display: 'flex', flexDirection: 'column' }}>
+        {S.toc.map((r, i) =>
+        <div key={i}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `${i === S.toc.length - 1 ? 'none' : '1px solid #e8e8e6'}` }}>
+              <div style={{ fontWeight: 800, fontSize: 10, letterSpacing: '0.04em', color: '#111', minWidth: 52 }}>{r.round}</div>
+              <div style={{ fontWeight: 300, fontSize: 11, color: '#888', flex: 1 }}>{r.title}</div>
+            </div>
+            {r.poems.map((p, j) =>
+          <div key={j} style={{ display: 'flex', paddingLeft: 52, padding: '6px 0 6px 52px', borderBottom: '0.5px solid #efefed', gap: 8 }}>
+                <div style={{ fontWeight: 400, fontSize: 12, color: '#333', flex: 1 }}>{p.t}</div>
+                <div style={{ fontWeight: 200, fontSize: 9.5, color: '#bbb' }}>{p.p}</div>
+              </div>
+          )}
+          </div>
+        )}
+      </div>
+    </Page>);
+
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VARIANT C — 야 (Ya)
+// Dark night · ultra-light · moonlit whitespace · barely-there elements
+// ═══════════════════════════════════════════════════════════════════════════
+const YA_BG = '#111116';
+const YA_INK = 'rgba(228,228,220,'; // prefix — suffix: opacity)
+
+function YA(op) {return `rgba(228,228,220,${op})`;}
+
+function C_Cover() {
+  return (
+    <Page bg={YA_BG} style={{ alignItems: 'center', justifyContent: 'center', padding: '44px 40px' }}>
+      <div style={{ fontWeight: 100, fontSize: 82, letterSpacing: '0.10em', color: YA(0.88), lineHeight: 0.92 }}>시화</div>
+      <div style={{ fontWeight: 200, fontSize: 13, letterSpacing: '0.42em', color: YA(0.30), marginTop: 16, marginBottom: 64 }}>詩和</div>
+      <div style={{ width: 28, height: 0.5, background: YA(0.16), marginBottom: 64 }} />
+      <div style={{ fontWeight: 100, fontSize: 10, letterSpacing: '0.56em', color: YA(0.22), textTransform: 'uppercase', marginBottom: 20 }}>글빛을 모아 담다</div>
+      <div style={{ fontWeight: 100, fontSize: 9.5, letterSpacing: '0.30em', color: YA(0.15), lineHeight: 2.0, textAlign: 'center' }}>{S.poets}</div>
+      <div style={{ marginTop: 'auto', fontWeight: 100, fontSize: 10, letterSpacing: '0.64em', color: YA(0.18) }}>2026</div>
+    </Page>);
+
+}
+
+function C_Divider() {
+  return (
+    <Page bg={YA_BG} style={{ alignItems: 'center', justifyContent: 'center', padding: '44px 40px' }}>
+      {/* Ghost background character */}
+      <div style={{ position: 'absolute', fontWeight: 100, fontSize: 200, color: YA(0.04), lineHeight: 1, letterSpacing: '-0.04em', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>봄</div>
+      {/* Foreground */}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+        <div style={{ fontWeight: 100, fontSize: 10, letterSpacing: '0.62em', color: YA(0.28), textTransform: 'uppercase', marginBottom: 28 }}>1회차</div>
+        <div style={{ fontWeight: 200, fontSize: 40, letterSpacing: '0.14em', color: YA(0.78), marginBottom: 28 }}>봄</div>
+        <div style={{ width: 18, height: 0.5, background: YA(0.18) }} />
+        <div style={{ marginTop: 20, fontWeight: 100, fontSize: 10, letterSpacing: '0.28em', color: YA(0.20) }}>계절 · 1분기</div>
+      </div>
+    </Page>);
+
+}
+
+function C_Poem() {
+  return (
+    <Page bg={YA_BG} style={{ padding: '60px 42px 44px' }}>
+      <div style={{ fontWeight: 100, fontSize: 8.5, letterSpacing: '0.60em', color: YA(0.28), textTransform: 'uppercase', marginBottom: 28 }}>{S.poem.poet}</div>
+      <div style={{ fontWeight: 300, fontSize: 20, letterSpacing: '0.03em', color: YA(0.82), marginBottom: 36, lineHeight: 1.4 }}>{S.poem.title}</div>
+      <div style={{ width: 14, height: 0.5, background: YA(0.18), marginBottom: 36 }} />
+      <div style={{ fontWeight: 100, fontSize: 13.5, lineHeight: 3.2, color: YA(0.62), whiteSpace: 'pre-line', flex: 1, letterSpacing: '0.01em' }}>{S.poem.body}</div>
+      <div style={{ fontWeight: 100, fontSize: 9, letterSpacing: '0.44em', color: YA(0.18), textAlign: 'right', marginTop: 24 }}>1</div>
+    </Page>);
+
+}
+
+function C_Toc() {
+  return (
+    <Page bg={YA_BG} style={{ padding: '60px 42px' }}>
+      <div style={{ fontWeight: 200, fontSize: 12, letterSpacing: '0.56em', color: YA(0.36), textTransform: 'uppercase', marginBottom: 44 }}>차 례</div>
+      {S.toc.map((r, i) =>
+      <div key={i} style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 200, fontSize: 9.5, letterSpacing: '0.44em', color: YA(0.28), textTransform: 'uppercase', marginBottom: 10 }}>{r.round} — {r.title}</div>
+          {r.poems.map((p, j) =>
+        <div key={j} style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '5px 0', borderBottom: `0.5px solid ${YA(0.07)}` }}>
+              <div style={{ fontWeight: 200, fontSize: 13, color: YA(0.62), flex: 1 }}>{p.t}</div>
+              <div style={{ fontWeight: 100, fontSize: 9.5, color: YA(0.24), letterSpacing: '0.08em' }}>{p.p}</div>
+            </div>
+        )}
+        </div>
+      )}
+    </Page>);
+
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VARIANT D — 선 (Seon)
+// Structural lines · left-rule poem · horizontal rules as rhythm · grid-aware
+// ═══════════════════════════════════════════════════════════════════════════
+
+function D_Cover() {
+  return (
+    <Page bg="#fafafa" style={{ padding: '44px 36px', position: 'relative' }}>
+      {/* vertical center rule */}
+      <div style={{ position: 'absolute', left: '48%', top: '14%', bottom: '14%', width: 0.5, background: '#ddd' }} />
+      {/* left half — main title */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: '56%' }}>
+        <div style={{ fontWeight: 800, fontSize: 60, letterSpacing: '-0.04em', color: '#111', lineHeight: 0.88 }}>시화</div>
+      </div>
+      {/* right half — detail */}
+      <div style={{ position: 'absolute', left: '52%', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontWeight: 200, fontSize: 12, letterSpacing: '0.28em', color: '#999' }}>詩和</div>
+        <div style={{ fontWeight: 200, fontSize: 9.5, letterSpacing: '0.20em', color: '#bbb', lineHeight: 1.8 }}>글빛을 모아{'\n'}담다</div>
+        <div style={{ fontWeight: 200, fontSize: 9.5, letterSpacing: '0.32em', color: '#ccc', marginTop: 8 }}>2026</div>
+      </div>
+      {/* bottom rule + credit */}
+      <div style={{ borderTop: '0.5px solid #e0e0e0', paddingTop: 12 }}>
+        <div style={{ fontWeight: 200, fontSize: 9, letterSpacing: '0.36em', color: '#ccc', textTransform: 'uppercase' }}>공동시집</div>
+      </div>
+    </Page>);
+
+}
+
+function D_Divider() {
+  return (
+    <Page bg="#fafafa" style={{ padding: '40px 36px' }}>
+      {/* double rule header */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ height: 2, background: '#111', marginBottom: 4 }} />
+        <div style={{ height: 0.5, background: '#ddd' }} />
+      </div>
+      {/* metadata */}
+      <div style={{ fontWeight: 200, fontSize: 10, letterSpacing: '0.56em', color: '#999', textTransform: 'uppercase', marginBottom: 20 }}>1회차</div>
+      {/* big title */}
+      <div style={{ fontWeight: 700, fontSize: 72, letterSpacing: '-0.03em', color: '#111', lineHeight: 0.88, marginBottom: 0 }}>봄</div>
+      {/* spacer */}
+      <div style={{ flex: 1 }} />
+      {/* footer */}
+      <div style={{ height: 0.5, background: '#e0e0e0', marginBottom: 12 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 200, fontSize: 9.5, letterSpacing: '0.32em', color: '#aaa', textTransform: 'uppercase' }}>계절 · 1분기</div>
+        <div style={{ fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', color: '#666' }}>Spring</div>
+      </div>
+    </Page>);
+
+}
+
+function D_Poem() {
+  return (
+    <Page bg="#fafafa" style={{ padding: 0, flexDirection: 'row' }}>
+      {/* left rule */}
+      <div style={{ width: 1, background: '#ddd', flexShrink: 0, margin: '48px 0 40px' }} />
+      {/* content */}
+      <div style={{ flex: 1, padding: '48px 32px 40px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ fontWeight: 200, fontSize: 8.5, letterSpacing: '0.52em', color: '#bbb', textTransform: 'uppercase', marginBottom: 20 }}>{S.poem.poet}</div>
+        <div style={{ fontWeight: 600, fontSize: 20, letterSpacing: '0.01em', color: '#111', lineHeight: 1.35, marginBottom: 30 }}>{S.poem.title}</div>
+        <div style={{ fontWeight: 300, fontSize: 13, lineHeight: 2.8, color: '#444', whiteSpace: 'pre-line', flex: 1 }}>{S.poem.body}</div>
+        <div style={{ fontWeight: 200, fontSize: 9, letterSpacing: '0.34em', color: '#ccc', marginTop: 20 }}>— 1</div>
+      </div>
+    </Page>);
+
+}
+
+function D_Toc() {
+  return (
+    <Page bg="#fafafa" style={{ padding: '48px 36px' }}>
+      {/* double rule + label */}
+      <div style={{ height: 2, background: '#111', marginBottom: 4 }} />
+      <div style={{ height: 0.5, background: '#ddd', marginBottom: 24 }} />
+      <div style={{ fontWeight: 700, fontSize: 12, letterSpacing: '0.44em', color: '#111', textTransform: 'uppercase', marginBottom: 30 }}>차 례</div>
+
+      {S.toc.map((r, i) =>
+      <div key={i}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0', borderTop: i > 0 ? '0.5px solid #eee' : 'none' }}>
+            <div style={{ fontWeight: 800, fontSize: 10, letterSpacing: '0.40em', color: '#111', minWidth: 52, textTransform: 'uppercase' }}>{r.round}</div>
+            <div style={{ fontWeight: 200, fontSize: 11, color: '#888', flex: 1 }}>{r.title}</div>
+          </div>
+          {r.poems.map((p, j) =>
+        <div key={j} style={{ display: 'flex', alignItems: 'baseline', padding: '5px 0 5px 52px', gap: 8, borderBottom: '0.5px solid #f0f0f0' }}>
+              <div style={{ fontWeight: 300, fontSize: 12, color: '#333', flex: 1 }}>{p.t}</div>
+              <div style={{ fontWeight: 200, fontSize: 9.5, color: '#bbb' }}>{p.p}</div>
+            </div>
+        )}
+        </div>
+      )}
+    </Page>);
+
+}
+
+// ─── Design Canvas App ────────────────────────────────────────────────────
+
+const VARIANTS = [
+{
+  id: 'baek', label: 'A — 백 (Baek)',
+  subtitle: '순백 · Pretendard 100 · 광대한 여백 · 무채색',
+  pages: [
+  { id: 'cover', label: '표지', C: A_Cover },
+  { id: 'div', label: '회차 구분', C: A_Divider },
+  { id: 'poem', label: '시 본문', C: A_Poem },
+  { id: 'toc', label: '차례', C: A_Toc }]
+
+},
+{
+  id: 'jeol', label: 'B — 절 (Jeol)',
+  subtitle: '에디토리얼 · 흑백 반전 바 · 800/200 대비 · 구조적',
+  pages: [
+  { id: 'cover', label: '표지', C: B_Cover },
+  { id: 'div', label: '회차 구분', C: B_Divider },
+  { id: 'poem', label: '시 본문', C: B_Poem },
+  { id: 'toc', label: '차례', C: B_Toc }]
+
+},
+{
+  id: 'ya', label: 'C — 야 (Ya)',
+  subtitle: '야간 독서 · 짙은 어둠 · Pretendard 100 · 달빛 타이포',
+  pages: [
+  { id: 'cover', label: '표지', C: C_Cover },
+  { id: 'div', label: '회차 구분', C: C_Divider },
+  { id: 'poem', label: '시 본문', C: C_Poem },
+  { id: 'toc', label: '차례', C: C_Toc }]
+
+},
+{
+  id: 'seon', label: 'D — 선 (Seon)',
+  subtitle: '수직 룰 · 이중 규칙선 · Pretendard 800 제목 · 구조 중심',
+  pages: [
+  { id: 'cover', label: '표지', C: D_Cover },
+  { id: 'div', label: '회차 구분', C: D_Divider },
+  { id: 'poem', label: '시 본문', C: D_Poem },
+  { id: 'toc', label: '차례', C: D_Toc }]
+
+}];
+
+
+const W = 290,H = 500;
+
+function App() {
+  return (
+    <DesignCanvas>
+      {VARIANTS.map((v) =>
+      <DCSection key={v.id} id={v.id} title={v.label} subtitle={v.subtitle}>
+          {v.pages.map((pg) =>
+        <DCArtboard key={pg.id} id={`${v.id}-${pg.id}`} label={pg.label} width={W} height={H}>
+              <pg.C />
+            </DCArtboard>
+        )}
+        </DCSection>
+      )}
+    </DesignCanvas>);
+
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

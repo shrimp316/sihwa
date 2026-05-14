@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { db, storage, auth, Quarter, Round, Poem, FreePoem, GalleryItem } from '@/lib/firebase'
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
@@ -8,13 +8,29 @@ import {
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { CoverProvider, useCoverContext, type CoverKey } from './CoverContext'
+import Book from './Book'
+import { buildBookPages, type PageItem } from '@/lib/bookData'
+import type { BookSourceData } from './BookPages'
+import {
+  safeImageUrl,
+  validateImageFile,
+  filterValid,
+  isQuarter,
+  isRound,
+  isPoem,
+  isFreePoem,
+  isGalleryItem,
+} from '@/lib/validation'
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 const SNAPSHOT_KEY = 'sihwa_snapshot'
+const READ_IDX_KEY_SINGLE = 'sihwa_read_idx_single'
+const READ_IDX_KEY_SPREAD = 'sihwa_read_idx_spread'
 
 const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: FreePoem[] } = {
   quarters: [
-    { id: 'q1', title: '계절', order: 0 },
+    { id: 'q1', title: '계절', intro: '계절은 늘 우리보다 먼저\n도착해 있었다', order: 0 },
     { id: 'q2', title: '관계', order: 1 },
   ],
   rounds: [
@@ -38,9 +54,8 @@ const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: 
   ],
 }
 
-type View = 'cover' | 'toc' | 'book' | 'gallery' | 'edit'
-type TabName = 'quarters' | 'rounds' | 'poems' | 'free' | 'gallery'
-type PageItem = { type: string; id: string; [key: string]: unknown }
+type View = 'cover' | 'book' | 'gallery' | 'edit'
+type TabName = 'quarters' | 'rounds' | 'poems' | 'free' | 'gallery' | 'covers'
 
 function loadSnapshot() {
   try {
@@ -52,22 +67,30 @@ function saveSnapshot(q: Quarter[], r: Round[], p: Poem[], f: FreePoem[]) {
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ quarters: q, rounds: r, poems: p, freePoems: f, ts: Date.now() })) } catch { }
 }
 
-export default function SihwaApp() {
-  const [loading, setLoading] = useState(true)
-  const [quarters, setQuarters] = useState<Quarter[]>([])
-  const [rounds, setRounds] = useState<Round[]>([])
-  const [poems, setPoems] = useState<Poem[]>([])
-  const [freePoems, setFreePoems] = useState<FreePoem[]>([])
+function SihwaAppInner() {
+  const cover = useCoverContext()
+
+  const initialSnap = useMemo(() => {
+    if (typeof window === 'undefined') return null
+    return loadSnapshot()
+  }, [])
+
+  const [loading, setLoading] = useState(() => !(initialSnap && initialSnap.quarters?.length))
+  const [quarters, setQuarters] = useState<Quarter[]>(() => initialSnap?.quarters || [])
+  const [rounds, setRounds] = useState<Round[]>(() => initialSnap?.rounds || [])
+  const [poems, setPoems] = useState<Poem[]>(() => initialSnap?.poems || [])
+  const [freePoems, setFreePoems] = useState<FreePoem[]>(() => initialSnap?.freePoems || [])
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([])
 
   const [currentView, setCurrentView] = useState<View>('cover')
-  const [viewMode, setViewMode] = useState<'scroll' | 'page'>('scroll')
   const [editMode, setEditMode] = useState(false)
   const [activeTab, setActiveTab] = useState<TabName>('quarters')
 
-  // Page view
-  const [pageItems, setPageItems] = useState<PageItem[]>([])
-  const [currentPageIdx, setCurrentPageIdx] = useState(0)
+  // Book viewer state
+  const [mode, setMode] = useState<'single' | 'spread'>('single')
+  const [bookIdx, setBookIdx] = useState(0)
+  const [forcedIdx, setForcedIdx] = useState<number | undefined>(undefined)
+  const [forceJumpToken, setForceJumpToken] = useState(0)
 
   // Modals
   const [showPwModal, setShowPwModal] = useState(false)
@@ -117,6 +140,14 @@ export default function SihwaApp() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deletingName, setDeletingName] = useState('')
 
+  // Cover upload state — which slot is currently uploading.
+  const [coverUploadingKey, setCoverUploadingKey] = useState<CoverKey | null>(null)
+  const coverFileRefs = {
+    app: useRef<HTMLInputElement>(null),
+    front: useRef<HTMLInputElement>(null),
+    back: useRef<HTMLInputElement>(null),
+  } as const
+
   const [filterRoundQuarter, setFilterRoundQuarter] = useState('')
   const [filterPoemQuarter, setFilterPoemQuarter] = useState('')
   const [filterPoemRound, setFilterPoemRound] = useState('')
@@ -126,13 +157,54 @@ export default function SihwaApp() {
   const rTitleRef = useRef<HTMLInputElement>(null)
   const pPoetRef = useRef<HTMLInputElement>(null)
 
-  // Helpers
-  const getRoundsOf = useCallback((qid: string) =>
-    rounds.filter(r => r.quarterId === qid).sort((a, b) => a.order - b.order), [rounds])
-  const getPoemsOf = useCallback((rid: string) =>
-    poems.filter(p => p.roundId === rid).sort((a, b) => a.order - b.order), [poems])
-  const getFreeOf = useCallback((qid: string) =>
-    freePoems.filter(f => f.quarterId === qid).sort((a, b) => a.order - b.order), [freePoems])
+  // Detect orientation for mode
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(orientation: landscape)')
+    const apply = (matches: boolean) => setMode(matches ? 'spread' : 'single')
+    apply(mql.matches)
+    const handler = (e: MediaQueryListEvent) => apply(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
+
+  // Restore last reading idx when mode (orientation) changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const key = mode === 'spread' ? READ_IDX_KEY_SPREAD : READ_IDX_KEY_SINGLE
+      const raw = localStorage.getItem(key)
+      if (raw != null) {
+        const n = parseInt(raw, 10)
+        if (!Number.isNaN(n)) {
+          setBookIdx(n)
+        }
+      }
+    } catch { /* noop */ }
+  }, [mode])
+
+  // Build pages per mode
+  const pages: PageItem[] = useMemo(() => {
+    if (!quarters.length) return []
+    const data = { quarters, rounds, poems, freePoems }
+    if (mode === 'spread') {
+      return buildBookPages(data, { maxFirst: 4, maxCont: 6, chars: 20 })
+    }
+    return buildBookPages(data, { maxFirst: 14, maxCont: 20, chars: 22 })
+  }, [quarters, rounds, poems, freePoems, mode])
+
+  const tocTitleIdx = useMemo(() => {
+    const i = pages.findIndex(p => p.type === 'toc-title')
+    return i >= 0 ? i : 0
+  }, [pages])
+
+  const findPoemPageIdx = useCallback((poemId: string, isFree: boolean) => {
+    return pages.findIndex(p => {
+      if (p.chunkIdx !== 0) return false
+      if (isFree) return p.type === 'free-poem' && p.freePoem?.id === poemId
+      return p.type === 'poem' && p.poem?.id === poemId
+    })
+  }, [pages])
 
   // Load data
   const loadAll = useCallback(async () => {
@@ -144,11 +216,16 @@ export default function SihwaApp() {
         getDocs(query(collection(db, 'freePoems'), orderBy('order'))),
         getDocs(query(collection(db, 'gallery'), orderBy('order'))),
       ])
-      const q = qSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Quarter[]
-      const r = rSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Round[]
-      const p = pSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Poem[]
-      const f = fSnap.docs.map(d => ({ id: d.id, ...d.data() })) as FreePoem[]
-      const g = gSnap.docs.map(d => ({ id: d.id, ...d.data() })) as GalleryItem[]
+      const qRaw = qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const rRaw = rSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const pRaw = pSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const fRaw = fSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const gRaw = gSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const q = filterValid<Quarter>(qRaw, isQuarter)
+      const r = filterValid<Round>(rRaw, isRound)
+      const p = filterValid<Poem>(pRaw, isPoem)
+      const f = filterValid<FreePoem>(fRaw, isFreePoem)
+      const g = filterValid<GalleryItem>(gRaw, isGalleryItem)
       if (q.length || p.length) {
         setQuarters(q); setRounds(r); setPoems(p); setFreePoems(f)
         saveSnapshot(q, r, p, f)
@@ -158,65 +235,50 @@ export default function SihwaApp() {
   }, [])
 
   useEffect(() => {
-    const snap = loadSnapshot()
-    if (snap && snap.quarters?.length) {
-      setQuarters(snap.quarters)
-      setRounds(snap.rounds || [])
-      setPoems(snap.poems || [])
-      setFreePoems(snap.freePoems || [])
+    let cancelled = false
+    loadAll().then(() => {
+      if (cancelled) return
+      setQuarters(q => q.length ? q : SAMPLE.quarters)
+      setRounds(r => r.length ? r : SAMPLE.rounds)
+      setPoems(p => p.length ? p : SAMPLE.poems)
+      setFreePoems(f => f.length ? f : SAMPLE.freePoems)
       setLoading(false)
-      loadAll()
-    } else {
-      loadAll().then(() => {
-        setQuarters(q => q.length ? q : SAMPLE.quarters)
-        setRounds(r => r.length ? r : SAMPLE.rounds)
-        setPoems(p => p.length ? p : SAMPLE.poems)
-        setFreePoems(f => f.length ? f : SAMPLE.freePoems)
-        setLoading(false)
-      })
-    }
+    })
+    return () => { cancelled = true }
   }, [loadAll])
 
-  // Build page items for page view
-  const buildPageItems = useCallback((q: Quarter[], r: Round[], p: Poem[], f: FreePoem[]) => {
-    const items: PageItem[] = []
-    q.sort((a, b) => a.order - b.order).forEach(quarter => {
-      const qRounds = r.filter(x => x.quarterId === quarter.id).sort((a, b) => a.order - b.order)
-      const hasPoems = qRounds.some(round => p.some(poem => poem.roundId === round.id))
-      const hasFree = f.some(fp => fp.quarterId === quarter.id)
-      if (!hasPoems && !hasFree) return
-      items.push({ type: 'quarter', id: quarter.id, quarter })
-      if (quarter.intro) items.push({ type: 'quarter-intro', id: `intro-${quarter.id}`, quarter })
-      qRounds.forEach(round => {
-        const rPoems = p.filter(x => x.roundId === round.id).sort((a, b) => a.order - b.order)
-        if (!rPoems.length) return
-        items.push({ type: 'round', id: round.id, round, quarter })
-        rPoems.forEach(poem => items.push({ type: 'poem', id: poem.id, poem, round, quarter }))
-      })
-      const fPoems = f.filter(x => x.quarterId === quarter.id).sort((a, b) => a.order - b.order)
-      if (fPoems.length) {
-        items.push({ type: 'free-section', id: `free-${quarter.id}`, quarter })
-        fPoems.forEach(fp => items.push({ type: 'free-poem', id: fp.id, freePoem: fp, quarter }))
-      }
-    })
-    return items
-  }, [])
+  // Track bookIdx (last read position) — persist to localStorage
+  const handleIdxChange = useCallback((newIdx: number) => {
+    setBookIdx(newIdx)
+    try {
+      const key = mode === 'spread' ? READ_IDX_KEY_SPREAD : READ_IDX_KEY_SINGLE
+      localStorage.setItem(key, String(newIdx))
+    } catch { /* noop */ }
+  }, [mode])
 
-  useEffect(() => {
-    if (currentView === 'book' && viewMode === 'page') {
-      const items = buildPageItems(quarters, rounds, poems, freePoems)
-      setPageItems(items)
-    }
-  }, [currentView, viewMode, quarters, rounds, poems, freePoems, buildPageItems])
+  const jumpToToc = useCallback(() => {
+    setForcedIdx(tocTitleIdx)
+    setForceJumpToken(t => t + 1)
+    setCurrentView('book')
+  }, [tocTitleIdx])
 
-  // Jump to poem in scroll view
-  const jumpTo = (poemId: string) => {
-    showView('book')
-    setTimeout(() => {
-      const el = document.querySelector(`[data-id="${poemId}"]`)
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 100)
-  }
+  const jumpToReading = useCallback(() => {
+    setForcedIdx(bookIdx)
+    setForceJumpToken(t => t + 1)
+    setCurrentView('book')
+  }, [bookIdx])
+
+  const onSelectPoem = useCallback((poemId: string, isFree: boolean) => {
+    const idx = findPoemPageIdx(poemId, isFree)
+    if (idx < 0) return
+    setForcedIdx(idx)
+    setForceJumpToken(t => t + 1)
+    setCurrentView('book')
+  }, [findPoemPageIdx])
+
+  const bookData: BookSourceData = useMemo(() => ({
+    quarters, rounds, poems, freePoems, onSelectPoem,
+  }), [quarters, rounds, poems, freePoems, onSelectPoem])
 
   // View management
   const showView = (name: View) => {
@@ -379,13 +441,20 @@ export default function SihwaApp() {
 
   const saveGalleryItem = async () => {
     if (!gTitle.trim()) { alert('제목을 입력해주세요.'); return }
-    let imageUrl = gImageUrl.trim()
+    let imageUrl = safeImageUrl(gImageUrl.trim())
+    if (gImageUrl.trim() && !imageUrl) {
+      alert('URL은 https:// 또는 data:image/... 형식만 허용돼요.')
+      return
+    }
     const file = gFileRef.current?.files?.[0]
     if (file) {
+      const check = validateImageFile(file)
+      if (!check.ok) { alert(check.reason); return }
       setGUploading(true)
       try {
-        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`)
-        const snap = await uploadBytes(storageRef, file)
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const storageRef = ref(storage, `gallery/${Date.now()}_${safeName}`)
+        const snap = await uploadBytes(storageRef, file, { contentType: file.type })
         imageUrl = await getDownloadURL(snap.ref)
       } catch (e) {
         console.error('이미지 업로드 실패:', e)
@@ -402,30 +471,34 @@ export default function SihwaApp() {
     } catch (e) { console.error('saveGalleryItem 실패:', e); alert('저장 실패: ' + (e instanceof Error ? (e.message + ' [' + ((e as { code?: string }).code ?? '') + ']') : String(e))) }
   }
 
+  // Cover upload handlers
+  const handleCoverFile = async (key: CoverKey, file: File | undefined) => {
+    if (!file) return
+    const check = validateImageFile(file)
+    if (!check.ok) { alert(check.reason); return }
+    setCoverUploadingKey(key)
+    try {
+      await cover.uploadAndSet(key, file)
+    } catch (e) {
+      console.error('표지 업로드 실패:', e)
+      alert('표지 업로드 실패: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setCoverUploadingKey(null)
+      const refEl = coverFileRefs[key].current
+      if (refEl) refEl.value = ''
+    }
+  }
+  const handleCoverClear = async (key: CoverKey) => {
+    if (!confirm('이 표지 이미지를 지울까요?')) return
+    try {
+      await cover.setUrl(key, '')
+    } catch (e) {
+      alert('지우기 실패: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   // Rendered cover poets
   const coverPoets = [...new Set(poems.map(p => p.poet))].join(' · ')
-
-  // TOC render data
-  const tocQuarters = quarters.filter(q => {
-    const qRounds = getRoundsOf(q.id)
-    return qRounds.some(r => getPoemsOf(r.id).length > 0)
-  }).sort((a, b) => a.order - b.order)
-
-  // Current page item
-  const currentItem = pageItems[currentPageIdx]
-
-  const getPageLabel = (item: PageItem) => {
-    if (!item) return ''
-    if (item.type === 'poem' || item.type === 'free-poem') {
-      const q = item.quarter as Quarter
-      return q?.title || ''
-    }
-    if (item.type === 'round') {
-      const r = item.round as Round
-      return r ? `${r.num}회차 — ${r.title}` : ''
-    }
-    return ''
-  }
 
   // Filter helpers for edit
   const filteredRounds = filterRoundQuarter ? rounds.filter(r => r.quarterId === filterRoundQuarter) : rounds
@@ -442,13 +515,13 @@ export default function SihwaApp() {
 
   if (loading) {
     return (
-      <div id="loading" style={{ position: 'fixed', inset: 0, background: '#fdf4e7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-        <div style={{ fontSize: '1.4rem', fontWeight: 400, color: '#6b5a42', letterSpacing: '0.15em', marginBottom: '1.5rem', fontFamily: "'Noto Serif KR', serif" }}>
+      <div id="loading" style={{ position: 'fixed', inset: 0, background: '#f8f8f8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+        <div style={{ fontSize: '1.2rem', fontWeight: 300, color: '#555', letterSpacing: '0.15em', marginBottom: '1.5rem', fontFamily: "'Pretendard Variable', 'Noto Sans KR', sans-serif" }}>
           글빛을 모아 담다 시화 詩和
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {[0, 1, 2].map(i => (
-            <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8a06a', display: 'inline-block', animation: `bounce 1.2s ease-in-out infinite`, animationDelay: `${i * 0.2}s` }} />
+            <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: '#999', display: 'inline-block', animation: `bounce 1.2s ease-in-out infinite`, animationDelay: `${i * 0.2}s` }} />
           ))}
         </div>
       </div>
@@ -460,210 +533,115 @@ export default function SihwaApp() {
       {/* TOP BAR */}
       <div id="topbar">
         <div className="tb-title">시화 詩和</div>
-        <button className={`tb-btn${currentView === 'toc' ? ' active' : ''}`} onClick={() => showView('toc')}>차례</button>
-        <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={() => showView('book')}>읽기</button>
+        <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={jumpToToc}>차례</button>
+        <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={jumpToReading}>읽기</button>
         <button className={`tb-btn${currentView === 'gallery' ? ' active' : ''}`} onClick={() => showView('gallery')}>갤러리</button>
         <button className={`tb-btn${editMode ? ' active' : ''}`} onClick={tryEditMode}>편집</button>
       </div>
 
       <div id="main">
         {/* COVER */}
-        <div id="cover" style={{ display: currentView === 'cover' ? 'flex' : 'none' }}>
-          <div className="cover-ornament">✦ ✦ ✦</div>
-          <div className="cover-main-title">글빛을 모아 담다 시화 詩和</div>
-          <div className="cover-poets">{coverPoets || '시인을 불러오는 중...'}</div>
-          <div className="cover-year">2026</div>
-          <button className="cover-start-btn" onClick={() => showView('toc')}>차례 보기</button>
-        </div>
+        {(() => {
+          const appBg = safeImageUrl(cover.app)
+          const coverStyle: React.CSSProperties = {
+            display: currentView === 'cover' ? 'flex' : 'none',
+            ...(appBg
+              ? {
+                  backgroundImage: `linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.78)), url("${appBg}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : {}),
+          }
+          return (
+            <div id="cover" style={coverStyle}>
+              <div className="cover-ornament">✦ ✦ ✦</div>
+              <div className="cover-main-title">글빛을 모아 담다 시화 詩和</div>
+              <div className="cover-poets">{coverPoets || '시인을 불러오는 중...'}</div>
+              <div className="cover-year">2026</div>
+              <button className="cover-start-btn" onClick={jumpToToc}>차례 보기</button>
+            </div>
+          )
+        })()}
 
-        {/* TOC */}
-        <div id="toc-view" className={currentView === 'toc' ? 'active' : ''}>
-          <div className="toc-header">차 례</div>
-          <div id="toc-body">
-            {tocQuarters.map((q, qi) => {
-              const qRounds = getRoundsOf(q.id)
-              return (
-                <div key={q.id} className="toc-quarter">
-                  <div className="toc-quarter-label">
-                    <span className="toc-quarter-num">{qi + 1}분기</span>{q.title}
-                  </div>
-                  {qRounds.map(r => {
-                    const rPoems = getPoemsOf(r.id)
-                    if (!rPoems.length) return null
-                    return (
-                      <div key={r.id} className="toc-round">
-                        <div className="toc-round-label">{r.num}회차 — {r.title}</div>
-                        {rPoems.map(p => (
-                          <div key={p.id} className="toc-item" onClick={() => jumpTo(p.id)}>
-                            <span className="toc-item-title">{p.title}</span>
-                            <span className="toc-item-poet">{p.poet}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
-            {tocQuarters.length === 0 && <div style={{ color: 'var(--ink-lite)', fontFamily: "'Noto Sans KR', sans-serif", fontSize: '0.8rem', padding: '2rem', textAlign: 'center' }}>아직 등록된 시가 없어요.</div>}
-          </div>
-        </div>
-
-        {/* BOOK VIEW (scroll) */}
-        <div id="book-view" className={currentView === 'book' && viewMode === 'scroll' ? 'active' : ''}>
-          <div id="book-body">
-            {quarters.sort((a, b) => a.order - b.order).map((q, qi) => {
-              const qRounds = getRoundsOf(q.id)
-              const hasPoems = qRounds.some(r => getPoemsOf(r.id).length > 0)
-              const fPoems = getFreeOf(q.id)
-              if (!hasPoems && !fPoems.length) return null
-              return (
-                <div key={q.id}>
-                  <div className="quarter-page">
-                    <div className="quarter-page-num">{qi + 1}분기</div>
-                    <div className="quarter-page-title">{q.title}</div>
-                  </div>
-                  {q.intro && <div className="quarter-intro"><div className="quarter-intro-body">{q.intro}</div></div>}
-                  {qRounds.map(r => {
-                    const rPoems = getPoemsOf(r.id)
-                    if (!rPoems.length) return null
-                    return (
-                      <div key={r.id}>
-                        <div className="round-page">
-                          <div className="round-page-num">{r.num}회차</div>
-                          <div className="round-page-title">{r.title}</div>
-                        </div>
-                        {rPoems.map(p => (
-                          <div key={p.id} className="poem-entry" data-id={p.id}>
-                            <div className="poem-entry-poet">{p.poet}</div>
-                            <div className="poem-entry-title">{p.title}</div>
-                            <div className="poem-entry-divider" />
-                            <div className="poem-entry-body">{p.body}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })}
-                  {fPoems.length > 0 && (
-                    <div>
-                      <div className="free-section-page">
-                        <div className="free-section-page-label">자유시</div>
-                        <div className="free-section-page-title">{q.title}</div>
-                      </div>
-                      {fPoems.map(fp => (
-                        <div key={fp.id} className="poem-entry" data-id={fp.id}>
-                          <div className="poem-entry-poet">{fp.poet}</div>
-                          <div className="poem-entry-title">{fp.title}</div>
-                          <div className="poem-entry-divider" />
-                          <div className="poem-entry-body">{fp.body}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          <div className="end-page">
-            <div className="end-ornament">✦</div>
-            <div className="end-title">글빛을 모아 담다 시화 詩和</div>
-            <div className="end-sub">끝</div>
-          </div>
-        </div>
-
-        {/* PAGE VIEW (card) */}
-        <div id="page-view" className={currentView === 'book' && viewMode === 'page' ? 'active' : ''}>
-          <div id="page-card-container">
-            {!pageItems.length ? (
-              <div className="page-card"><div className="page-card-type">아직 등록된 시가 없어요.</div></div>
-            ) : currentItem ? (
-              <div className="page-card">
-                {currentItem.type === 'quarter' && (() => {
-                  const q = currentItem.quarter as Quarter
-                  const qi = quarters.sort((a, b) => a.order - b.order).findIndex(x => x.id === q.id)
-                  return <>
-                    <div className="page-card-quarter-num">{qi + 1}분기</div>
-                    <div className="page-card-quarter-title">{q.title}</div>
-                  </>
-                })()}
-                {currentItem.type === 'quarter-intro' && (() => {
-                  const q = currentItem.quarter as Quarter
-                  return <div className="page-card-intro">{q.intro}</div>
-                })()}
-                {currentItem.type === 'round' && (() => {
-                  const r = currentItem.round as Round
-                  return <>
-                    <div className="page-card-round-num">{r.num}회차</div>
-                    <div className="page-card-round-title">{r.title}</div>
-                  </>
-                })()}
-                {(currentItem.type === 'poem' || currentItem.type === 'free-poem') && (() => {
-                  const p = (currentItem.poem || currentItem.freePoem) as Poem | FreePoem
-                  return <>
-                    <div className="page-card-type">{p.poet}</div>
-                    <div className="page-card-title">{p.title}</div>
-                    <div className="page-card-divider" />
-                    <div className="page-card-body">{p.body}</div>
-                  </>
-                })()}
-                {currentItem.type === 'free-section' && (() => {
-                  const q = currentItem.quarter as Quarter
-                  return <>
-                    <div className="page-card-type">자유시</div>
-                    <div className="page-card-round-title">{q.title}</div>
-                  </>
-                })()}
-                <div className="page-counter" style={{ marginTop: '2rem' }}>
-                  {currentPageIdx + 1} / {pageItems.length}
-                </div>
-              </div>
-            ) : null}
-          </div>
+        {/* BOOK VIEWER (3D flip) */}
+        <div id="book-viewer" className={currentView === 'book' ? 'active' : ''}>
+          {pages.length > 0 && (
+            <Book
+              key={mode}
+              pages={pages}
+              mode={mode}
+              data={bookData}
+              initialIdx={bookIdx || (mode === 'spread' ? 0 : 1)}
+              forcedIdx={forcedIdx}
+              forceJumpToken={forceJumpToken}
+              onIdxChange={handleIdxChange}
+            />
+          )}
         </div>
 
         {/* GALLERY VIEW */}
         <div id="gallery-view" className={currentView === 'gallery' ? 'active' : ''}>
-          <div id="gallery-body">
-            {!galleryItems.length ? (
-              <div className="empty-state" style={{ minHeight: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                아직 등록된 이미지가 없어요.
-              </div>
-            ) : (
-              quarters.sort((a, b) => a.order - b.order).map((q, qi) => {
-                const gItems = galleryItems.filter(g => g.quarterId === q.id).sort((a, b) => a.order - b.order)
-                if (!gItems.length) return null
-                return (
-                  <div key={q.id} className="gallery-quarter">
-                    <div className="gallery-quarter-label">{qi + 1}분기 — {q.title}</div>
-                    <div className="gallery-grid">
-                      {gItems.map(g => (
-                        <div key={g.id} className="gallery-card" onClick={() => setLightboxItem(g)}>
-                          {g.imageUrl
-                            ? <div className="gallery-card-img"><img src={g.imageUrl} loading="lazy" alt={g.title} /></div>
-                            : <div className="gallery-card-img-placeholder">이미지 없음</div>
+          {!galleryItems.length ? (
+            <div className="empty-state">
+              아직 등록된 이미지가 없어요.
+            </div>
+          ) : (
+            quarters.sort((a, b) => a.order - b.order).map((q, qi) => {
+              const gItems = galleryItems.filter(g => g.quarterId === q.id).sort((a, b) => a.order - b.order)
+              if (!gItems.length) return null
+              return (
+                <div key={q.id} className="gallery-quarter">
+                  <div className="gallery-quarter-label">{qi + 1}분기 — {q.title}</div>
+                  <div className="gallery-grid">
+                    {gItems.map(g => (
+                      <div
+                        key={g.id}
+                        className="gallery-card"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setLightboxItem(g)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setLightboxItem(g)
                           }
-                          <div className="gallery-card-body">
-                            <span className={`gallery-type-badge ${{ illust: 'badge-illust', bg: 'badge-bg', etc: 'badge-etc' }[g.type] || 'badge-etc'}`}>
-                              {{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[g.type] || '기타'}
-                            </span>
-                            <div className="gallery-card-title">{g.title}</div>
-                            {g.note && <div className="gallery-card-note">{g.note}</div>}
-                          </div>
+                        }}
+                      >
+                        {(() => {
+                          const url = safeImageUrl(g.imageUrl)
+                          return url
+                            ? <div className="gallery-card-img">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} loading="lazy" alt={g.title} />
+                            </div>
+                            : <div className="gallery-card-img-placeholder">이미지 없음</div>
+                        })()}
+                        <div className="gallery-card-body">
+                          <span className={`gallery-type-badge ${{ illust: 'badge-illust', bg: 'badge-bg', etc: 'badge-etc' }[g.type] || 'badge-etc'}`}>
+                            {{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[g.type] || '기타'}
+                          </span>
+                          <div className="gallery-card-title">{g.title}</div>
+                          {g.note && <div className="gallery-card-note">{g.note}</div>}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                )
-              })
-            )}
-          </div>
+                </div>
+              )
+            })
+          )}
         </div>
 
         {/* GALLERY LIGHTBOX */}
         {lightboxItem && (
           <div id="gallery-lightbox" className="active" onClick={() => setLightboxItem(null)}>
             <button id="lb-close" onClick={() => setLightboxItem(null)}>✕</button>
-            {lightboxItem.imageUrl && <img id="lb-img" src={lightboxItem.imageUrl} alt={lightboxItem.title} />}
+            {(() => {
+              const url = safeImageUrl(lightboxItem.imageUrl)
+              // eslint-disable-next-line @next/next/no-img-element
+              return url ? <img id="lb-img" src={url} alt={lightboxItem.title} /> : null
+            })()}
             <div id="lb-title">{lightboxItem.title}</div>
             <div id="lb-tag">{{ illust: '시 삽화', bg: '배경 삽화', etc: '기타' }[lightboxItem.type] || '기타'}</div>
             {lightboxItem.note && <div id="lb-note">{lightboxItem.note}</div>}
@@ -677,9 +655,9 @@ export default function SihwaApp() {
             컬렉션: <code>quarters</code> · <code>rounds</code> · <code>poems</code> · <code>freePoems</code> · <code>gallery</code>
           </div>
           <div className="edit-tabs">
-            {(['quarters', 'rounds', 'poems', 'free', 'gallery'] as TabName[]).map(t => (
+            {(['quarters', 'rounds', 'poems', 'free', 'gallery', 'covers'] as TabName[]).map(t => (
               <button key={t} className={`edit-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
-                {{ quarters: '분기 관리', rounds: '회차 관리', poems: '시 관리', free: '자유시', gallery: '갤러리' }[t]}
+                {{ quarters: '분기', rounds: '회차', poems: '시', free: '자유시', gallery: '갤러리', covers: '표지' }[t]}
               </button>
             ))}
           </div>
@@ -832,46 +810,81 @@ export default function SihwaApp() {
               {!galleryItems.length && <div className="empty-state">갤러리에 이미지가 없어요.</div>}
             </div>
           )}
+
+          {/* 표지 탭 */}
+          {activeTab === 'covers' && (
+            <div>
+              <div className="edit-section-header">
+                <div className="edit-section-title">표지 이미지</div>
+              </div>
+              <div className="cover-edit-grid">
+                {([
+                  { key: 'app' as CoverKey, label: '앱 홈 배경', desc: '홈 화면(표지) 뒤 배경 이미지' },
+                  { key: 'front' as CoverKey, label: '앞표지', desc: '책의 첫 페이지' },
+                  { key: 'back' as CoverKey, label: '뒷표지', desc: '책의 마지막 페이지' },
+                ]).map(slot => {
+                  const url = safeImageUrl((cover as unknown as Record<string, string>)[slot.key])
+                  const uploading = coverUploadingKey === slot.key
+                  return (
+                    <div key={slot.key} className="cover-edit-slot">
+                      <div className="cover-edit-label">
+                        <strong>{slot.label}</strong>
+                        <span className="cover-edit-desc">{slot.desc}</span>
+                      </div>
+                      <div className="cover-edit-preview">
+                        {url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={url} alt={slot.label} />
+                        ) : (
+                          <div className="cover-edit-empty">이미지 없음</div>
+                        )}
+                      </div>
+                      <div className="cover-edit-actions">
+                        <input
+                          ref={coverFileRefs[slot.key]}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          disabled={uploading}
+                          onChange={e => handleCoverFile(slot.key, e.target.files?.[0])}
+                        />
+                        {url && (
+                          <button
+                            className="ecard-btn del"
+                            disabled={uploading}
+                            onClick={() => handleCoverClear(slot.key)}
+                          >
+                            지우기
+                          </button>
+                        )}
+                        {uploading && <span className="cover-edit-uploading">업로드 중...</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="empty-state" style={{ marginTop: 16, fontSize: 11 }}>
+                PNG · JPEG · WebP · GIF · 최대 5MB. 업로드 시 Firebase Storage에 저장됩니다.
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* BOTTOM NAV */}
-      {currentView === 'book' && (
-        <div id="bottom-nav" className="active">
-          <button className="bnav-btn" disabled={currentPageIdx <= 0}
-            onClick={() => setCurrentPageIdx(i => Math.max(0, i - 1))}>← 이전</button>
-          <div id="page-indicator">{getPageLabel(currentItem)}</div>
-          <button className="bnav-btn" disabled={currentPageIdx >= pageItems.length - 1}
-            onClick={() => setCurrentPageIdx(i => Math.min(pageItems.length - 1, i + 1))}>다음 →</button>
-        </div>
-      )}
-
-      {/* VIEW TOGGLE */}
-      {currentView === 'book' && (
-        <div className="view-toggle">
-          <button className={`view-toggle-btn${viewMode === 'scroll' ? ' active' : ''}`} id="vt-scroll"
-            onClick={() => setViewMode('scroll')}>스크롤</button>
-          <button className={`view-toggle-btn${viewMode === 'page' ? ' active' : ''}`} id="vt-page"
-            onClick={() => setViewMode('page')}>페이지</button>
-        </div>
-      )}
 
       {/* PASSWORD MODAL */}
       {showPwModal && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowPwModal(false)}>
-          <div id="pw-modal" className="modal-box" style={{ background: 'var(--cream2)', borderColor: 'var(--border)' }}>
-            <div className="modal-title" style={{ color: 'var(--ink-mid)' }}>편집 모드</div>
+          <div className="modal-box">
+            <div className="modal-title">편집 모드</div>
             <div className="form-group">
               <label className="form-label">비밀번호</label>
               <input ref={pwInputRef} type="password" className="form-input" placeholder="••••••••"
-                style={{ background: 'var(--cream)', borderColor: 'var(--border)', color: 'var(--ink)', fontFamily: "'Noto Sans KR', sans-serif" }}
                 value={pwInput} onChange={e => { setPwInput(e.target.value); setPwError(false) }}
                 onKeyDown={e => e.key === 'Enter' && checkPassword()} />
               {pwError && <div className="pw-error show">비밀번호가 맞지 않아요</div>}
             </div>
             <div className="modal-actions">
-              <button className="modal-btn cancel" style={{ color: 'var(--ink-lite)', borderColor: 'var(--border)' }} onClick={() => setShowPwModal(false)}>취소</button>
-              <button className="modal-btn confirm" style={{ background: 'var(--ink)', color: 'var(--cream)' }} onClick={checkPassword}>확인</button>
+              <button className="modal-btn cancel" onClick={() => setShowPwModal(false)}>취소</button>
+              <button className="modal-btn confirm" onClick={checkPassword}>확인</button>
             </div>
           </div>
         </div>
@@ -1022,7 +1035,7 @@ export default function SihwaApp() {
             <div className="form-group">
               <label className="form-label">이미지 파일 업로드</label>
               <input ref={gFileRef} type="file" className="form-input" accept="image/*" style={{ padding: 6 }} />
-              {gUploading && <div style={{ fontSize: '0.75rem', color: 'var(--edit-gold)', marginTop: 4 }}>업로드 중...</div>}
+              {gUploading && <div style={{ fontSize: '0.75rem', color: '#888', marginTop: 4 }}>업로드 중...</div>}
             </div>
             <div className="form-group">
               <label className="form-label">또는 이미지 URL 직접 입력</label>
@@ -1045,16 +1058,24 @@ export default function SihwaApp() {
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowDelModal(false)}>
           <div className="modal-box">
             <div className="modal-title">삭제 확인</div>
-            <p style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: '0.82rem', color: 'var(--edit-text)', lineHeight: 1.7, marginBottom: '1.5rem' }}>
-              <strong style={{ color: '#e8b870' }}>{deletingName}</strong>을(를) 삭제할까요? 이 작업은 되돌릴 수 없어요.
+            <p style={{ fontFamily: "'Pretendard Variable', 'Noto Sans KR', sans-serif", fontSize: '13px', color: '#555', lineHeight: 1.7, marginBottom: '14px' }}>
+              <strong style={{ color: '#111' }}>{deletingName}</strong>을(를) 삭제할까요? 이 작업은 되돌릴 수 없어요.
             </p>
             <div className="modal-actions">
               <button className="modal-btn cancel" onClick={() => setShowDelModal(false)}>취소</button>
-              <button className="modal-btn" style={{ background: '#7a3030', border: 'none', color: '#ffd0d0' }} onClick={confirmDelete}>삭제</button>
+              <button className="modal-btn" style={{ background: '#c06060', border: 'none', color: '#fff' }} onClick={confirmDelete}>삭제</button>
             </div>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+export default function SihwaApp() {
+  return (
+    <CoverProvider>
+      <SihwaAppInner />
+    </CoverProvider>
   )
 }

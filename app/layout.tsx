@@ -1,20 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Serif_KR, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
-
-const notoSerifKR = Noto_Serif_KR({
-  weight: ["300", "400", "500"],
-  subsets: ["latin"],
-  variable: "--font-noto-serif",
-  display: "swap",
-});
-
-const notoSansKR = Noto_Sans_KR({
-  weight: ["300", "400", "500"],
-  subsets: ["latin"],
-  variable: "--font-noto-sans",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "글빛을 모아 담다 시화 詩和",
@@ -40,7 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${notoSerifKR.variable} ${notoSansKR.variable}`}>
+    <html lang="ko">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Sihwa Storage security rules.
+//
+// Public read for gallery + cover images so visitors can view them without
+// auth. Writes are restricted to the admin email and limited to image MIME
+// types under 5MB per object.
+//
+// To deploy: `firebase deploy --only storage`
+// Replace ADMIN_EMAIL with the same value as NEXT_PUBLIC_ADMIN_EMAIL.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'ADMIN_EMAIL_HERE@example.com';
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/(png|jpe?g|webp|gif)')
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /gallery/{file=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage();
+    }
+
+    match /covers/{file=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage();
+    }
+
+    // Default deny.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
