@@ -204,13 +204,13 @@ function SihwaAppInner() {
       // spread page actually fills with content. Phone landscape stays sparse.
       return buildBookPages(
         data,
-        isWide ? { maxFirst: 18, maxCont: 24, chars: 44 }
+        isWide ? { maxFirst: 15, maxCont: 15, chars: 44 }
                : { maxFirst: 4, maxCont: 6, chars: 20 },
       )
     }
     return buildBookPages(
       data,
-      isWide ? { maxFirst: 20, maxCont: 28, chars: 34 }
+      isWide ? { maxFirst: 15, maxCont: 15, chars: 34 }
              : { maxFirst: 14, maxCont: 20, chars: 22 },
     )
   }, [quarters, rounds, poems, freePoems, mode, isWide])
