@@ -12,6 +12,7 @@ import { CoverProvider, useCoverContext, type CoverKey } from './CoverContext'
 import Book from './Book'
 import { buildBookPages, type PageItem } from '@/lib/bookData'
 import type { BookSourceData } from './BookPages'
+import { TocSidebar } from './TocSidebar'
 import {
   safeImageUrl,
   validateImageFile,
@@ -25,8 +26,10 @@ import {
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 const SNAPSHOT_KEY = 'sihwa_snapshot'
-const READ_IDX_KEY_SINGLE = 'sihwa_read_idx_single'
-const READ_IDX_KEY_SPREAD = 'sihwa_read_idx_spread'
+const READ_IDX_KEY_SINGLE = 'sihwa_read_idx_single_v2'
+const READ_IDX_KEY_SPREAD = 'sihwa_read_idx_spread_v2'
+const OLD_READ_IDX_KEY_SINGLE = 'sihwa_read_idx_single'  // legacy (pre-chunk-removal)
+const OLD_READ_IDX_KEY_SPREAD = 'sihwa_read_idx_spread'  // legacy (pre-chunk-removal)
 
 const SAMPLE: { quarters: Quarter[]; rounds: Round[]; poems: Poem[]; freePoems: FreePoem[] } = {
   quarters: [
@@ -92,6 +95,12 @@ function SihwaAppInner() {
   const [bookIdx, setBookIdx] = useState(0)
   const [forcedIdx, setForcedIdx] = useState<number | undefined>(undefined)
   const [forceJumpToken, setForceJumpToken] = useState(0)
+
+  // PE-4: TOC sidebar visibility. Default false (SSR-safe); sync to isWide
+  // once on the client so PC opens the sidebar by default while mobile keeps
+  // it closed until the user taps the bottom tabbar.
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileTocOpen, setMobileTocOpen] = useState(false)
 
   // Modals
   const [showPwModal, setShowPwModal] = useState(false)
@@ -180,20 +189,11 @@ function SihwaAppInner() {
     return () => mql.removeEventListener('change', handler)
   }, [])
 
-  // Restore last reading idx when mode (orientation) changes
+  // PE-4: sync PC sidebar default to isWide once the viewport is known.
+  // SSR-safe because sidebarOpen starts false; this only flips it open on PC.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      const key = mode === 'spread' ? READ_IDX_KEY_SPREAD : READ_IDX_KEY_SINGLE
-      const raw = localStorage.getItem(key)
-      if (raw != null) {
-        const n = parseInt(raw, 10)
-        if (!Number.isNaN(n)) {
-          setBookIdx(n)
-        }
-      }
-    } catch { /* noop */ }
-  }, [mode])
+    setSidebarOpen(isWide)
+  }, [isWide])
 
   // Build pages per mode
   const pages: PageItem[] = useMemo(() => {
@@ -220,9 +220,54 @@ function SihwaAppInner() {
     return i >= 0 ? i : 0
   }, [pages])
 
+  // Restore last reading idx — V2 with one-shot migration from legacy keys.
+  // PE-1: race-guarded. We MUST wait until Firestore pages are loaded (and
+  // include at least one poem page) before reading legacy keys, otherwise the
+  // sample-only fallback could prematurely consume + delete the legacy entry.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (pages.length === 0) return
+    if (!pages.some(p => p.type === 'poem' || p.type === 'free-poem')) return
+
+    const newKey = mode === 'spread' ? READ_IDX_KEY_SPREAD : READ_IDX_KEY_SINGLE
+    const oldKey = mode === 'spread' ? OLD_READ_IDX_KEY_SPREAD : OLD_READ_IDX_KEY_SINGLE
+
+    try {
+      // Try V2 key first
+      const v2raw = window.localStorage.getItem(newKey)
+      if (v2raw != null) {
+        const n = Number(v2raw)
+        if (Number.isFinite(n) && n >= 0 && n < pages.length) setBookIdx(n)
+        return
+      }
+
+      // V2 missing → migrate from legacy if present
+      const oldraw = window.localStorage.getItem(oldKey)
+      if (oldraw == null) return
+      const oldN = Number(oldraw)
+      if (!Number.isFinite(oldN)) return
+
+      // Best-effort: clamp into bounds and snap to nearest poem/free-poem.
+      // With chunks removed, the legacy idx no longer maps 1:1 — snapping to
+      // the nearest readable page is acceptable for this one-shot migration.
+      const clamped = Math.max(0, Math.min(pages.length - 1, oldN))
+      let nearest = -1
+      let bestDist = Infinity
+      for (let i = 0; i < pages.length; i++) {
+        if (pages[i].type !== 'poem' && pages[i].type !== 'free-poem') continue
+        const d = Math.abs(i - clamped)
+        if (d < bestDist) { bestDist = d; nearest = i }
+      }
+      if (nearest >= 0) {
+        setBookIdx(nearest)
+        window.localStorage.setItem(newKey, String(nearest))
+        window.localStorage.removeItem(oldKey)
+      }
+    } catch { /* noop */ }
+  }, [mode, pages])
+
   const findPoemPageIdx = useCallback((poemId: string, isFree: boolean) => {
     return pages.findIndex(p => {
-      if (p.chunkIdx !== 0) return false
       if (isFree) return p.type === 'free-poem' && p.freePoem?.id === poemId
       return p.type === 'poem' && p.poem?.id === poemId
     })
@@ -297,6 +342,23 @@ function SihwaAppInner() {
     setForceJumpToken(t => t + 1)
     setCurrentView('book')
   }, [findPoemPageIdx])
+
+  // Jump to an arbitrary page index in the book (used by TocSidebar for
+  // round-divider taps). Routes through the existing force-jump mechanism so
+  // Book.tsx flushes the queued idx on the next idle phase.
+  const jumpToBookIdx = useCallback((idx: number) => {
+    if (idx < 0) return
+    setForcedIdx(idx)
+    setForceJumpToken(t => t + 1)
+    setCurrentView('book')
+  }, [])
+
+  // Currently displayed poem id (for sidebar "is-current" highlight).
+  const currentPoemId = useMemo(() => {
+    const p = pages[bookIdx]
+    if (!p) return null
+    return p.poem?.id ?? p.freePoem?.id ?? null
+  }, [pages, bookIdx])
 
   const bookData: BookSourceData = useMemo(() => ({
     quarters, rounds, poems, freePoems, onSelectPoem,
@@ -555,7 +617,16 @@ function SihwaAppInner() {
       {/* TOP BAR */}
       <div id="topbar">
         <div className="tb-title">시화 詩和</div>
-        <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={jumpToToc}>차례</button>
+        {/* PC-only: "차례" toggles the persistent sidebar. Mobile users have
+            the bottom tabbar (목차) for the same purpose, so we hide this. */}
+        {isWide && (
+          <button
+            className={`tb-btn${sidebarOpen ? ' active' : ''}`}
+            onClick={() => setSidebarOpen(o => !o)}
+          >
+            차례
+          </button>
+        )}
         <button className={`tb-btn${currentView === 'book' ? ' active' : ''}`} onClick={jumpToReading}>읽기</button>
         <button className={`tb-btn${currentView === 'gallery' ? ' active' : ''}`} onClick={() => showView('gallery')}>갤러리</button>
         <button className={`tb-btn${editMode ? ' active' : ''}`} onClick={tryEditMode}>편집</button>
@@ -586,8 +657,31 @@ function SihwaAppInner() {
           )
         })()}
 
+        {/* TOC SIDEBAR — PC persistent / Mobile fullscreen overlay */}
+        {currentView === 'book' && (
+          <TocSidebar
+            quarters={quarters}
+            rounds={rounds}
+            poems={poems}
+            freePoems={freePoems}
+            open={isWide ? sidebarOpen : mobileTocOpen}
+            onClose={() => isWide ? setSidebarOpen(false) : setMobileTocOpen(false)}
+            viewportMode={isWide ? 'pc' : 'mobile'}
+            currentPoemId={currentPoemId}
+            onSelectPoem={(id, isFree) => { onSelectPoem(id, isFree) }}
+            onSelectRound={(rid) => {
+              const idx = pages.findIndex(p => p.type === 'round-divider' && p.round?.id === rid)
+              if (idx >= 0) jumpToBookIdx(idx)
+              if (!isWide) setMobileTocOpen(false)
+            }}
+          />
+        )}
+
         {/* BOOK VIEWER (3D flip) */}
-        <div id="book-viewer" className={currentView === 'book' ? 'active' : ''}>
+        <div
+          id="book-viewer"
+          className={`${currentView === 'book' ? 'active' : ''}${!isWide ? ' has-mobile-tabbar' : ''}`}
+        >
           {pages.length > 0 && (
             <Book
               key={mode}
@@ -601,6 +695,19 @@ function SihwaAppInner() {
             />
           )}
         </div>
+
+        {/* MOBILE BOTTOM TABBAR — only on mobile + book view */}
+        {!isWide && currentView === 'book' && (
+          <nav className="mobile-tabbar" aria-label="Mobile navigation">
+            <button
+              className="mobile-tabbar-btn"
+              onClick={() => setMobileTocOpen(true)}
+              aria-label="목차 열기"
+            >
+              <span>목차</span>
+            </button>
+          </nav>
+        )}
 
         {/* GALLERY VIEW */}
         <div id="gallery-view" className={currentView === 'gallery' ? 'active' : ''}>

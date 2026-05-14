@@ -248,30 +248,19 @@ function FreeDivider({ quarter }: { quarter: Quarter }) {
 }
 
 // ── Poem entry ──────────────────────────────────────────────────────────
+// Step 1: one poem = one page. No chunking, no continuation header/footer.
+// The full body is rendered as a single block; if it overflows the page, the
+// surrounding .page-scroll-shell handles vertical scroll.
 function PoemPage({ page }: { page: PageItem }) {
   const poem = (page.poem || page.freePoem) as Poem | FreePoem | undefined
   if (!poem) return null
-  const body = page.bodyChunk ?? poem.body
-  const isFirst = (page.chunkIdx ?? 0) === 0
-  const hasMore = (page.totalChunks ?? 1) > 1 && (page.chunkIdx ?? 0) < (page.totalChunks ?? 1) - 1
 
   return (
     <div className="pg pg-poem">
-      {isFirst ? (
-        <>
-          <div className="po-poet">{poem.poet}</div>
-          <div className="po-title">{poem.title}</div>
-          <div className="po-rule" />
-        </>
-      ) : (
-        <div className="po-cont-header">
-          <span className="po-cont-title">{poem.title}</span>
-          <span className="po-cont-sep">·</span>
-          <span className="po-cont-poet">{poem.poet}</span>
-        </div>
-      )}
-      <div className="po-body">{body}</div>
-      {hasMore && <div className="po-continues">다음 페이지로 이어집니다 →</div>}
+      <div className="po-poet">{poem.poet}</div>
+      <div className="po-title">{poem.title}</div>
+      <div className="po-rule" />
+      <div className="po-body">{poem.body}</div>
     </div>
   )
 }

@@ -25,80 +25,7 @@ export interface PageItem {
   quarter?: Quarter
   qi?: number
   pageNum?: number
-  bodyChunk?: string
-  chunkIdx?: number
-  totalChunks?: number
   kind?: string
-}
-
-export interface PaginateOpts {
-  maxFirst?: number
-  maxCont?: number
-  chars?: number
-}
-
-export function paginateBody(body: string, opts: PaginateOpts = {}): string[] {
-  const { maxFirst = 14, maxCont = 20, chars = 22 } = opts
-
-  const countLines = (text: string) => {
-    if (!text) return 1
-    return Math.max(1, Math.ceil(text.length / chars))
-  }
-
-  const rawStanzas = body.split(/\n{2,}/).map(s => s.split('\n'))
-  const entries = rawStanzas.map((stanza, si) => ({ lines: stanza, blankBefore: si > 0 }))
-
-  const chunks: string[] = []
-  let buf: string[] = []
-  let used = 0
-
-  const flush = () => {
-    if (buf.length === 0) return
-    while (buf.length > 0 && buf[0] === '') buf.shift()
-    while (buf.length > 0 && buf[buf.length - 1] === '') buf.pop()
-    if (buf.length > 0) chunks.push(buf.join('\n'))
-    buf = []
-    used = 0
-  }
-
-  const maxForChunk = () => (chunks.length === 0 ? maxFirst : maxCont)
-
-  entries.forEach(({ lines, blankBefore }) => {
-    const blankCost = blankBefore ? 1 : 0
-    const stanzaLines = lines.reduce((acc, l) => acc + countLines(l), 0)
-    const totalCost = blankCost + stanzaLines
-
-    if (used + totalCost > maxForChunk() && buf.length > 0) {
-      flush()
-    }
-
-    if (stanzaLines > maxForChunk()) {
-      if (blankBefore && buf.length > 0) {
-        buf.push('')
-        used += 1
-      }
-      lines.forEach(line => {
-        const lc = countLines(line)
-        if (used + lc > maxForChunk() && buf.length > 0) {
-          flush()
-        }
-        buf.push(line)
-        used += lc
-      })
-    } else {
-      if (blankBefore && buf.length > 0) {
-        buf.push('')
-        used += 1
-      }
-      lines.forEach(l => {
-        buf.push(l)
-        used += countLines(l)
-      })
-    }
-  })
-  flush()
-
-  return chunks.length > 0 ? chunks : [body]
 }
 
 export interface BookData {
@@ -108,9 +35,9 @@ export interface BookData {
   freePoems: FreePoem[]
 }
 
-export function buildBookPages(data: BookData, opts: PaginateOpts = {}): PageItem[] {
+export function buildBookPages(data: BookData, _opts: Record<string, unknown> = {}): PageItem[] {
+  void _opts // legacy opts arg retained for BC; pagination is no longer needed (1 poem = 1 page)
   const { quarters, rounds, poems, freePoems } = data
-  const paginationOpts: PaginateOpts = { maxFirst: 14, maxCont: 20, chars: 22, ...opts }
   const qSorted = [...quarters].sort((a, b) => a.order - b.order)
   const pages: PageItem[] = []
 
@@ -125,7 +52,7 @@ export function buildBookPages(data: BookData, opts: PaginateOpts = {}): PageIte
     pages.push({ type: 'toc-quarter', quarter: q, qi })
   })
 
-  // Body
+  // Body — 1 poem per page (no chunking)
   qSorted.forEach((q, qi) => {
     const qRounds = rounds.filter(r => r.quarterId === q.id).sort((a, b) => a.order - b.order)
     const hasRoundPoems = qRounds.some(r => poems.some(p => p.roundId === r.id))
@@ -140,35 +67,14 @@ export function buildBookPages(data: BookData, opts: PaginateOpts = {}): PageIte
       if (!rPoems.length) return
       pages.push({ type: 'round-divider', round: r, quarter: q })
       rPoems.forEach(p => {
-        const chunks = paginateBody(p.body, paginationOpts)
-        chunks.forEach((chunk, ci) => {
-          pages.push({
-            type: 'poem',
-            poem: p,
-            round: r,
-            quarter: q,
-            bodyChunk: chunk,
-            chunkIdx: ci,
-            totalChunks: chunks.length,
-          })
-        })
+        pages.push({ type: 'poem', poem: p, round: r, quarter: q })
       })
     })
 
     if (qFree.length) {
       pages.push({ type: 'free-divider', quarter: q })
       qFree.forEach(f => {
-        const chunks = paginateBody(f.body, paginationOpts)
-        chunks.forEach((chunk, ci) => {
-          pages.push({
-            type: 'free-poem',
-            freePoem: f,
-            quarter: q,
-            bodyChunk: chunk,
-            chunkIdx: ci,
-            totalChunks: chunks.length,
-          })
-        })
+        pages.push({ type: 'free-poem', freePoem: f, quarter: q })
       })
     }
   })
@@ -178,6 +84,24 @@ export function buildBookPages(data: BookData, opts: PaginateOpts = {}): PageIte
   pages.push({ type: 'colophon' })
   pages.push({ type: 'blank', kind: 'flyleaf-back' })
   pages.push({ type: 'back-cover' })
+
+  // PE-3: divider-gated blank padding (mutation-safe backward iteration).
+  // If a poem lands on an odd index (spread-right) immediately after a divider/intro,
+  // insert a blank so the poem moves to even index (spread-left). This preserves the
+  // visual rhythm where dividers introduce a poem on the next spread's left page.
+  for (let k = pages.length - 1; k >= 1; k--) {
+    const p = pages[k]
+    const prev = pages[k - 1]
+    const isPoem = p.type === 'poem' || p.type === 'free-poem'
+    const prevIsBoundary =
+      prev.type === 'round-divider' ||
+      prev.type === 'quarter-divider' ||
+      prev.type === 'quarter-intro' ||
+      prev.type === 'free-divider'
+    if (isPoem && prevIsBoundary && k % 2 === 1) {
+      pages.splice(k, 0, { type: 'blank', kind: 'spread-pad-pre-poem' })
+    }
+  }
 
   // Spread alignment: prepend pre-cover blank, pad to even length
   pages.unshift({ type: 'blank', kind: 'pre-cover' })

@@ -38,7 +38,7 @@ html { font-size: 16px; }
 body {
   background: var(--paper-2);
   font-family: var(--serif);
-  min-height: 100vh;
+  min-height: 100dvh;  /* dvh = dynamic viewport height for mobile UA chrome */
   overflow-x: hidden;
   color: var(--ink);
   user-select: none;
@@ -93,11 +93,11 @@ body {
 .edit-mode .tb-title { color: var(--edit-gold); }
 
 /* ── MAIN ── */
-#main { padding-top: 48px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+#main { padding-top: 48px; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; }  /* dvh = dynamic viewport height for mobile UA chrome */
 
 /* ── COVER ── */
 #cover {
-  min-height: calc(100vh - 48px);
+  min-height: calc(100dvh - 48px);  /* dvh = dynamic viewport height for mobile UA chrome */
   width: 100%;
   flex-direction: column;
   align-items: center;
@@ -333,10 +333,31 @@ body {
 }
 .page-inner-left  { padding-left: 40px; padding-right: 28px; }
 .page-inner-right { padding-left: 28px; padding-right: 40px; }
-.mode-spread .page-inner { padding: 20px 18px 38px; }
-.mode-spread .page-inner-left  { padding-left: 22px; padding-right: 12px; }
-.mode-spread .page-inner-right { padding-left: 12px; padding-right: 22px; }
+/* PE-Step6 — measurement-driven; revise after QA */
+.mode-spread .page-inner { padding: 20px 12px 38px; }
+.mode-spread .page-inner-left  { padding-left: 14px; padding-right: 8px; }
+.mode-spread .page-inner-right { padding-left: 8px; padding-right: 14px; }
 .mode-single .page-inner-single { padding: 38px 40px 56px; }
+
+/* Step 2: per-page scroll container. Mounts only inside bg-page (transform-free)
+   for poem/free-poem types via PageInner's frozen+scrollable gate. */
+.page-scroll-shell {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.page-scroll-shell::-webkit-scrollbar { width: 4px; }
+.page-scroll-shell::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12); border-radius: 2px;
+}
+
+/* PE-6 defensive fallback: should never trigger thanks to the frozen prop,
+   but if a future change accidentally mounts a shell under .flip-face we
+   neutralize scrolling so iOS Safari compositor doesn't regress. */
+.flip-face .page-scroll-shell {
+  overflow: hidden !important;
+  -webkit-overflow-scrolling: auto !important;
+}
 
 /* ── PAGE TYPES ─ Variant A: 백 (Baek) ─────────────────────────────── */
 .pg { width:100%; height:100%; display:flex; flex-direction:column; }
@@ -385,7 +406,14 @@ body {
 .toc-q-title   { font-weight:300; font-size:18px; letter-spacing:0.1em;
                  color:var(--ink); margin-bottom:14px; }
 .toc-q-rule    { height:0.5px; background:var(--border); margin-bottom:18px; }
-.toc-q-list    { flex:1; overflow:hidden; }
+/* Step 7: center the TOC list as a fixed-width column so dots stay visually
+   coherent regardless of page width. */
+.toc-q-list    {
+  flex:1; overflow:hidden;
+  max-width: 340px;
+  width: 100%;
+  margin: 0 auto;
+}
 .toc-q-round       { margin-bottom:18px; }
 .toc-q-round-label { font-weight:700; font-size:9px; letter-spacing:0.36em;
                      color:var(--ink); text-transform:uppercase; margin-bottom:6px; }
@@ -452,22 +480,9 @@ body {
   font-weight:200; font-size:13.5px; color:var(--ink-mid);
   line-height:3.0; white-space:pre-line; letter-spacing:0.01em;
   text-wrap:pretty; max-width:96%;
+  word-break: keep-all; overflow-wrap: anywhere;  /* PE-Step6: prevent single-char overflow wraps (줄밀림) */
 }
 .mode-spread .po-body { font-size:11.5px; line-height:2.4; }
-
-.po-cont-header {
-  display:flex; align-items:baseline; gap:8px;
-  margin-bottom:28px; padding-bottom:12px;
-  border-bottom:0.5px solid rgba(0,0,0,0.07); opacity:0.7;
-}
-.mode-spread .po-cont-header { margin-bottom:16px; padding-bottom:8px; }
-.po-cont-title { font-weight:400; font-size:12px; color:var(--ink); }
-.po-cont-sep   { color:var(--ink-lite); font-size:10px; }
-.po-cont-poet  { font-weight:200; font-size:9px; letter-spacing:0.2em; color:var(--ink-lite); }
-.po-continues  {
-  margin-top:auto; padding-top:18px;
-  font-weight:200; font-size:9px; letter-spacing:0.28em; color:var(--ink-lite); opacity:0.6;
-}
 
 .pg-end { gap:14px; }
 .end-ornament { font-size:11px; color:var(--spine); opacity:0.5; }
@@ -681,19 +696,16 @@ body {
    balanced. ── */
 @media (min-width: 900px) {
   /* Spread mode (PC landscape) — each half-spread is a full page, can fit
-     much more text than phone landscape. */
-  .mode-spread .page-inner { padding: 48px 56px 56px; }
-  .mode-spread .page-inner-left  { padding-left: 64px; padding-right: 44px; }
-  .mode-spread .page-inner-right { padding-left: 44px; padding-right: 64px; }
+     much more text than phone landscape.
+     PE-Step6 — measurement-driven; revise after QA */
+  .mode-spread .page-inner { padding: 40px 40px 48px; }
+  .mode-spread .page-inner-left  { padding-left: 44px; padding-right: 28px; }
+  .mode-spread .page-inner-right { padding-left: 28px; padding-right: 44px; }
 
   .mode-spread .po-poet   { font-size: 11px; margin-bottom: 28px; }
   .mode-spread .po-title  { font-size: 26px; margin-bottom: 32px; }
   .mode-spread .po-rule   { width: 18px; margin-bottom: 32px; }
   .mode-spread .po-body   { font-size: 15px; line-height: 2.4; max-width: 92%; }
-  .mode-spread .po-cont-header { margin-bottom: 28px; padding-bottom: 12px; }
-  .mode-spread .po-cont-title  { font-size: 14px; }
-  .mode-spread .po-cont-poet   { font-size: 10px; }
-  .mode-spread .po-continues   { font-size: 10px; }
 
   .mode-spread .pg-poem   { padding-top: 6%; }
 
@@ -718,4 +730,156 @@ body {
   .mode-single .page-inner { padding: 64px 80px 72px; }
   .mode-single .po-body { font-size: 16px; line-height: 2.8; }
   .mode-single .po-title { font-size: 26px; }
+}
+
+/* ===== TocSidebar — PC (persistent left) ===== */
+.toc-sidebar-pc {
+  position: fixed;
+  top: 48px;           /* below topbar */
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  background: var(--paper, #faf8f3);
+  border-right: 1px solid rgba(0,0,0,0.08);
+  z-index: 50;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transform: translateX(0);
+  transition: transform 0.22s ease;
+  font-family: var(--sans, system-ui);
+}
+.toc-sidebar-pc[data-open="false"] {
+  transform: translateX(-100%);
+}
+
+.toc-sidebar-pc .toc-sb-header {
+  position: sticky; top: 0; background: inherit;
+  padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06);
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 600; font-size: 13px;
+}
+.toc-sidebar-pc .toc-sb-list { padding: 8px 0; }
+.toc-sidebar-pc .toc-sb-quarter > .toc-sb-quarter-head,
+.toc-sidebar-pc .toc-sb-round > .toc-sb-round-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; cursor: pointer; user-select: none;
+  font-size: 12.5px; color: var(--ink-mid, #5a4f44);
+  transition: background 0.12s;
+}
+.toc-sidebar-pc .toc-sb-quarter-head:hover,
+.toc-sidebar-pc .toc-sb-round-head:hover { background: rgba(0,0,0,0.04); }
+.toc-sidebar-pc .toc-sb-quarter-head { font-weight: 600; padding-left: 12px; }
+.toc-sidebar-pc .toc-sb-round-head { padding-left: 22px; }
+.toc-sidebar-pc .toc-sb-poems { padding-left: 32px; }
+.toc-sidebar-pc .toc-sb-poem {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer;
+  padding: 4px 14px 4px 32px; font-size: 12px;
+  color: var(--ink-mid, #7a6e60);
+  transition: background 0.12s, color 0.12s;
+}
+.toc-sidebar-pc .toc-sb-poem:hover { background: rgba(0,0,0,0.04); color: var(--ink, #3a342e); }
+.toc-sidebar-pc .toc-sb-poem.is-current {
+  color: var(--ink, #3a342e); font-weight: 600;
+  background: rgba(160, 130, 90, 0.08);
+}
+.toc-sidebar-pc .toc-sb-caret {
+  display: inline-block; width: 10px; transition: transform 0.15s;
+}
+.toc-sidebar-pc [data-expanded="true"] > .toc-sb-quarter-head > .toc-sb-caret,
+.toc-sidebar-pc [data-expanded="true"] > .toc-sb-round-head > .toc-sb-caret {
+  transform: rotate(90deg);
+}
+
+/* ===== TocSidebar — Mobile (fullscreen overlay) ===== */
+.toc-sidebar-mobile {
+  position: fixed; inset: 0;
+  background: var(--paper, #faf8f3);
+  z-index: 110;   /* above mobile tabbar (90) */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  transform: translateY(0);
+  transition: transform 0.22s ease, opacity 0.18s ease;
+  opacity: 1;
+}
+.toc-sidebar-mobile[data-open="false"] {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+.toc-sidebar-mobile .toc-sb-header {
+  position: sticky; top: 0; background: inherit;
+  padding: 14px 18px; padding-top: calc(14px + env(safe-area-inset-top, 0));
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 600; font-size: 16px;
+}
+.toc-sidebar-mobile .toc-sb-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 22px; padding: 4px 8px; line-height: 1;
+}
+.toc-sidebar-mobile .toc-sb-list { padding: 10px 0 24px; }
+.toc-sidebar-mobile .toc-sb-quarter-head,
+.toc-sidebar-mobile .toc-sb-round-head,
+.toc-sidebar-mobile .toc-sb-poem { font-size: 15px; padding-top: 10px; padding-bottom: 10px; }
+.toc-sidebar-mobile .toc-sb-quarter-head { padding-left: 18px; font-weight: 600; }
+.toc-sidebar-mobile .toc-sb-round-head { padding-left: 30px; }
+.toc-sidebar-mobile .toc-sb-poem { padding-left: 42px; }
+
+/* Mobile: caret transitions for collapsibles */
+.toc-sidebar-mobile .toc-sb-quarter > .toc-sb-quarter-head,
+.toc-sidebar-mobile .toc-sb-round > .toc-sb-round-head {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none;
+  color: var(--ink-mid, #5a4f44);
+}
+.toc-sidebar-mobile .toc-sb-poem {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer;
+  color: var(--ink-mid, #7a6e60);
+}
+.toc-sidebar-mobile .toc-sb-poem.is-current {
+  color: var(--ink, #3a342e); font-weight: 600;
+}
+.toc-sidebar-mobile .toc-sb-caret {
+  display: inline-block; width: 12px; transition: transform 0.15s;
+}
+.toc-sidebar-mobile [data-expanded="true"] > .toc-sb-quarter-head > .toc-sb-caret,
+.toc-sidebar-mobile [data-expanded="true"] > .toc-sb-round-head > .toc-sb-caret {
+  transform: rotate(90deg);
+}
+
+/* ===== Mobile bottom tabbar — Executor C will integrate but reserves space ===== */
+.mobile-tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 48px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  background: var(--paper, #faf8f3);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  z-index: 90;
+  display: flex; align-items: center; justify-content: center;
+}
+.mobile-tabbar .mobile-tabbar-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 0 28px; height: 100%;
+  font-size: 14px; font-weight: 600; color: var(--ink-mid, #5a4f44);
+  display: flex; align-items: center; gap: 6px;
+}
+.mobile-tabbar .mobile-tabbar-btn:active { background: rgba(0,0,0,0.04); }
+
+@media (max-width: 899px) {
+  /* mobile only: ensure mobile-tabbar visible and PC sidebar hidden */
+  .toc-sidebar-pc { display: none; }
+}
+@media (min-width: 900px) {
+  /* PC only: hide mobile bits */
+  .mobile-tabbar { display: none; }
+  .toc-sidebar-mobile { display: none; }
+}
+
+/* Mobile: book viewer leaves room for the bottom tabbar (48px) plus safe-area */
+#book-viewer.has-mobile-tabbar {
+  bottom: calc(48px + env(safe-area-inset-bottom, 0));
 }

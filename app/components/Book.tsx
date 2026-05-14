@@ -3,6 +3,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   CSSProperties,
@@ -55,6 +56,20 @@ export default function Book({
   const [bookmark, setBookmark] = useState<number | null>(null)
   const idRef = useRef<number>(__nextBookId++)
 
+  // PE-4: root ref so tap-zone boundary checks + scroll-snapshot capture can
+  // find the .page-scroll-shell elements without DOM-global queries.
+  const bookRootRef = useRef<HTMLDivElement>(null)
+
+  // PE-2: snapshot of scrollTop for left/right/single bg-page scroll shells
+  // captured just before a phase transition. The flip-face renders frozen=true
+  // so its PageInner must apply this translateY to preserve the visual scroll
+  // position during rotateY animation.
+  const flipScrollSnapshotRef = useRef<{ left: number; right: number; single: number }>({
+    left: 0,
+    right: 0,
+    single: 0,
+  })
+
   const total = pages.length
 
   const prevIdxRef = useRef<number>(idx)
@@ -94,6 +109,23 @@ export default function Book({
   const atStart = idx <= (isSpread ? 0 : 1)
   const atEnd = idx >= total - step
 
+  // PE-2: capture current scrollTop from each bg-page shell into the snapshot
+  // ref. Called synchronously right before a setPhase() transition so the
+  // freshly-mounted flip-face PageInner (frozen=true) can apply the offset in
+  // useLayoutEffect, preserving the visual scroll position during the flip.
+  const captureScrollSnapshot = useCallback(() => {
+    const root = bookRootRef.current
+    if (!root) return
+    const lEl = root.querySelector('.bg-left .page-scroll-shell') as HTMLElement | null
+    const rEl = root.querySelector('.bg-right .page-scroll-shell') as HTMLElement | null
+    const sEl = root.querySelector('.bg-single .page-scroll-shell') as HTMLElement | null
+    flipScrollSnapshotRef.current = {
+      left: lEl?.scrollTop ?? 0,
+      right: rEl?.scrollTop ?? 0,
+      single: sEl?.scrollTop ?? 0,
+    }
+  }, [])
+
   const goNext = useCallback(() => {
     if (phase !== 'idle') return
     if (atEnd) return
@@ -103,8 +135,9 @@ export default function Book({
     }
     if (target >= total) return
     targetRef.current = target
+    captureScrollSnapshot()
     setPhase('forward')
-  }, [phase, atEnd, idx, step, isSpread, pages, total])
+  }, [phase, atEnd, idx, step, isSpread, pages, total, captureScrollSnapshot])
 
   const goPrev = useCallback(() => {
     if (phase !== 'idle') return
@@ -115,8 +148,9 @@ export default function Book({
     }
     if (target < 0) return
     targetRef.current = target
+    captureScrollSnapshot()
     setPhase('backward')
-  }, [phase, atStart, idx, step, isSpread, pages])
+  }, [phase, atStart, idx, step, isSpread, pages, captureScrollSnapshot])
 
   const flipSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -162,25 +196,90 @@ export default function Book({
     claim()
   }, [])
 
-  const swipe = useRef<{ x: number | null; y: number | null }>({ x: null, y: null })
+  // Step 3: boundary-gated swipe — if the touch starts inside a scroll shell
+  // and the user actually scrolled (or the shell isn't at the appropriate
+  // boundary), suppress the page flip so scroll wins.
+  const swipe = useRef<{
+    x: number | null
+    y: number | null
+    t: number
+    scrollEl: HTMLElement | null
+    startScrollTop: number
+  }>({ x: null, y: null, t: 0, scrollEl: null, startScrollTop: 0 })
+
   const onTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
     claim()
     const t = e.touches?.[0]
     if (!t) return
-    swipe.current = { x: t.clientX, y: t.clientY }
+    const target = e.target as HTMLElement | null
+    const scrollEl =
+      (target?.closest?.('.page-scroll-shell') as HTMLElement | null) ?? null
+    swipe.current = {
+      x: t.clientX,
+      y: t.clientY,
+      t: Date.now(),
+      scrollEl,
+      startScrollTop: scrollEl?.scrollTop ?? 0,
+    }
   }
+
   const onTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
     const start = swipe.current
+    swipe.current = { x: null, y: null, t: 0, scrollEl: null, startScrollTop: 0 }
     if (start.x == null || start.y == null) return
     const t = e.changedTouches?.[0]
     if (!t) return
     const dx = t.clientX - start.x
     const dy = t.clientY - start.y
-    swipe.current = { x: null, y: null }
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      if (dx < 0) goNext()
-      else goPrev()
+    const dt = Date.now() - start.t
+    if (dt > 600) return
+    if (Math.abs(dx) < 32) return
+    if (Math.abs(dy) > Math.abs(dx) * 0.8) return // mostly vertical, not a horizontal swipe
+
+    const el = start.scrollEl
+    if (el) {
+      const currentTop = el.scrollTop
+      const maxScroll = el.scrollHeight - el.clientHeight
+      const hasScroll = maxScroll > 1
+      const userScrolled = Math.abs(currentTop - start.startScrollTop) > 2
+      if (userScrolled) return // user actually scrolled; respect that
+      if (hasScroll) {
+        if (dx > 0 && currentTop > 1) return // prev requires at-top
+        if (dx < 0 && currentTop < maxScroll - 1) return // next requires at-bottom
+      }
+      // no-scroll case: swipe always allowed
     }
+
+    if (dx > 0) goPrev()
+    else goNext()
+  }
+
+  // Step 3: boundary check for tap-zones. Returns true if the tap should
+  // trigger a flip; false if the page is scrolled and the user should scroll
+  // further (or back) before flipping. Uses bookRootRef to find the relevant
+  // shell on the appropriate side.
+  const tapShouldFlip = (side: 'prev' | 'next') => {
+    const root = bookRootRef.current
+    if (!root) return true
+    const sel =
+      side === 'prev'
+        ? '.bg-left .page-scroll-shell, .bg-single .page-scroll-shell'
+        : '.bg-right .page-scroll-shell, .bg-single .page-scroll-shell'
+    const el = root.querySelector(sel) as HTMLElement | null
+    if (!el) return true
+    const maxScroll = el.scrollHeight - el.clientHeight
+    if (maxScroll <= 1) return true
+    if (side === 'prev') return el.scrollTop <= 1
+    return el.scrollTop >= maxScroll - 1
+  }
+
+  const onTapPrev = () => {
+    if (!tapShouldFlip('prev')) return
+    goPrev()
+  }
+  const onTapNext = () => {
+    if (!tapShouldFlip('next')) return
+    goNext()
   }
 
   const safe = (i: number): PageItem | null => (i >= 0 && i < total ? pages[i] : null)
@@ -301,6 +400,7 @@ export default function Book({
 
   return (
     <div
+      ref={bookRootRef}
       className={`book-root paper-${paperTone} mode-${mode}`}
       style={rootStyle}
       onMouseDownCapture={claim}
@@ -357,11 +457,25 @@ export default function Book({
       <div className="book-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {isSpread && (
           <div className="bg-page bg-left">
-            <PageInner page={bgL} side="left" totalPages={total} data={data} />
+            <PageInner
+              page={bgL}
+              side="left"
+              totalPages={total}
+              data={data}
+              frozen={false}
+              scrollable={bgL?.type === 'poem' || bgL?.type === 'free-poem'}
+            />
           </div>
         )}
         <div className={`bg-page${isSpread ? ' bg-right' : ' bg-single'}`}>
-          <PageInner page={bgR} side={isSpread ? 'right' : 'single'} totalPages={total} data={data} />
+          <PageInner
+            page={bgR}
+            side={isSpread ? 'right' : 'single'}
+            totalPages={total}
+            data={data}
+            frozen={false}
+            scrollable={bgR?.type === 'poem' || bgR?.type === 'free-poem'}
+          />
         </div>
 
         {isSpread && <div className="book-spine" />}
@@ -380,6 +494,9 @@ export default function Book({
                 side={isSpread ? 'right' : 'single'}
                 totalPages={total}
                 data={data}
+                frozen={true}
+                scrollable={flipFront?.type === 'poem' || flipFront?.type === 'free-poem'}
+                scrollSnapshotRef={flipScrollSnapshotRef}
               />
               <div className="flip-shade flip-shade-front" />
             </div>
@@ -389,6 +506,9 @@ export default function Book({
                 side={isSpread ? 'left' : 'single'}
                 totalPages={total}
                 data={data}
+                frozen={true}
+                scrollable={flipBack?.type === 'poem' || flipBack?.type === 'free-poem'}
+                scrollSnapshotRef={flipScrollSnapshotRef}
               />
               <div className="flip-shade flip-shade-back" />
             </div>
@@ -397,13 +517,13 @@ export default function Book({
 
         <button
           className="tap-zone tap-prev"
-          onClick={goPrev}
+          onClick={onTapPrev}
           disabled={atStart}
           aria-label="이전 페이지"
         />
         <button
           className="tap-zone tap-next"
-          onClick={goNext}
+          onClick={onTapNext}
           disabled={atEnd}
           aria-label="다음 페이지"
         />
@@ -447,15 +567,63 @@ function PageInner({
   side,
   totalPages,
   data,
+  frozen,
+  scrollable,
+  scrollSnapshotRef,
 }: {
   page: PageItem | null
   side: 'left' | 'right' | 'single'
   totalPages: number
   data: BookSourceData
+  frozen: boolean
+  scrollable: boolean
+  scrollSnapshotRef?: React.RefObject<{ left: number; right: number; single: number }>
 }) {
+  // PE-6 dev assertion: if frozen=true, the scroll shell must never mount,
+  // because mounting an overflow:auto container inside a rotateY() transform
+  // chain triggers iOS Safari compositor regressions. The frozen prop is the
+  // compile-time gate; this runtime check catches violations during dev.
+  if (process.env.NODE_ENV !== 'production' && frozen && scrollable) {
+    console.error(
+      '[PageInner] frozen=true while scrollable=true — scroll-shell would mount under transform chain'
+    )
+  }
+
+  const showShell = !frozen && scrollable
+
+  // PE-2: when frozen (i.e. inside .flip-face), apply the captured scrollTop
+  // as a translateY on the content so the visual scroll position is preserved
+  // during the rotateY animation. useLayoutEffect runs after DOM mutation but
+  // synchronously before paint, so no visual flash.
+  const frozenContentRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!frozen) return
+    const el = frozenContentRef.current
+    if (!el) return
+    const snap = scrollSnapshotRef?.current
+    const offset = snap ? snap[side] : 0
+    el.style.transform = offset ? `translateY(${-offset}px)` : ''
+  }, [frozen, side, scrollSnapshotRef])
+
+  if (frozen) {
+    return (
+      <div className={`page-inner page-inner-${side}`}>
+        <div ref={frozenContentRef} style={{ willChange: 'transform' }}>
+          <PageContent page={page} side={side} totalPages={totalPages} data={data} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`page-inner page-inner-${side}`}>
-      <PageContent page={page} side={side} totalPages={totalPages} data={data} />
+      {showShell ? (
+        <div className="page-scroll-shell">
+          <PageContent page={page} side={side} totalPages={totalPages} data={data} />
+        </div>
+      ) : (
+        <PageContent page={page} side={side} totalPages={totalPages} data={data} />
+      )}
     </div>
   )
 }
