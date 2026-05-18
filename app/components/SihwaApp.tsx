@@ -13,6 +13,7 @@ import Book from './Book'
 import { buildBookPages, type PageItem } from '@/lib/bookData'
 import type { BookSourceData } from './BookPages'
 import { TocSidebar } from './TocSidebar'
+import OnboardingPopup from './OnboardingPopup'
 import {
   safeImageUrl,
   validateImageFile,
@@ -693,6 +694,9 @@ function SihwaAppInner() {
               forceJumpToken={forceJumpToken}
               onIdxChange={handleIdxChange}
             />
+          )}
+          {currentView === 'book' && pages.length > 0 && (
+            <OnboardingPopup variant={isWide ? 'landscape' : 'portrait'} />
           )}
         </div>
 
