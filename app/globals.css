@@ -275,9 +275,12 @@ body {
     rgba(80,55,20,0) 25%);
 }
 
+/* Tap-zones는 페이지 끝의 좁은 띠로 한정 — 중앙 영역은 page-scroll-shell이
+   터치/스크롤을 가져갈 수 있도록 비워둠. (28% 폭이면 모바일에서 측면 스크롤
+   이 묻혀 안 됨.) */
 .tap-zone {
   position: absolute; top: 0; bottom: 0;
-  width: 28%;
+  width: 56px;
   background: transparent; border: 0; cursor: pointer;
   z-index: 6;
   -webkit-tap-highlight-color: transparent;
@@ -285,6 +288,10 @@ body {
 .tap-prev { left: 0; }
 .tap-next { right: 0; }
 .tap-zone:disabled { cursor: default; }
+
+@media (min-width: 900px) {
+  .tap-zone { width: 72px; }
+}
 
 .page-foot {
   position: absolute; bottom: 56px; left: 0; right: 0; height: 0;
