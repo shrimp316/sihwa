@@ -347,46 +347,32 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(0,0,0,0.18) rgba(0,0,0,0.04);
+  box-sizing: border-box;
 }
 .page-scroll-shell::-webkit-scrollbar { width: 4px; }
 .page-scroll-shell::-webkit-scrollbar-thumb {
   background: rgba(0,0,0,0.12); border-radius: 2px;
 }
 
-/* PC: make the per-page scrollbar visibly draggable. Native ::-webkit-scrollbar
-   handles click-drag for free; we just widen + style it so users see and grab
-   it easily. */
+/* Scroll area = full page: page-inner의 패딩을 scroll-shell로 이전해서
+   스크롤바·터치 인터랙션 영역이 페이지 가장자리까지 닿게 함. 비-스크롤
+   페이지(표지/divider/blank)는 영향 없음. */
+.page-inner:has(> .page-scroll-shell) {
+  padding: 0;
+}
+.page-inner > .page-scroll-shell { padding: 38px 40px 56px; }
+.page-inner-left > .page-scroll-shell { padding-left: 40px; padding-right: 28px; }
+.page-inner-right > .page-scroll-shell { padding-left: 28px; padding-right: 40px; }
+.mode-spread .page-inner > .page-scroll-shell { padding: 20px 18px 38px; }
+.mode-spread .page-inner-left > .page-scroll-shell { padding-left: 22px; padding-right: 12px; }
+.mode-spread .page-inner-right > .page-scroll-shell { padding-left: 12px; padding-right: 22px; }
+.mode-single .page-inner-single > .page-scroll-shell { padding: 38px 40px 56px; }
+
 @media (min-width: 900px) {
-  .page-scroll-shell {
-    scrollbar-width: auto;
-    scrollbar-color: var(--gold) rgba(0,0,0,0.06);
-    scrollbar-gutter: stable;
-  }
-  .page-scroll-shell::-webkit-scrollbar {
-    width: 18px;
-  }
-  .page-scroll-shell::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.05);
-    border-radius: 9px;
-    margin: 6px 2px;
-  }
-  .page-scroll-shell::-webkit-scrollbar-thumb {
-    background: var(--gold);
-    background-clip: padding-box;
-    border: 3px solid transparent;
-    border-radius: 9px;
-    min-height: 44px;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
-    transition: background 0.15s;
-  }
-  .page-scroll-shell::-webkit-scrollbar-thumb:hover {
-    background: var(--gold-d);
-    background-clip: padding-box;
-  }
-  .page-scroll-shell::-webkit-scrollbar-thumb:active {
-    background: var(--ink);
-    background-clip: padding-box;
-  }
+  .mode-spread .page-inner > .page-scroll-shell { padding: 48px 56px 56px; }
+  .mode-spread .page-inner-left > .page-scroll-shell { padding-left: 64px; padding-right: 44px; }
+  .mode-spread .page-inner-right > .page-scroll-shell { padding-left: 44px; padding-right: 64px; }
+  .mode-single .page-inner > .page-scroll-shell { padding: 64px 80px 72px; }
 }
 
 /* PE-6 defensive fallback: should never trigger thanks to the frozen prop,
