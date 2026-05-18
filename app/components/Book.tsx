@@ -196,36 +196,26 @@ export default function Book({
     claim()
   }, [])
 
-  // Step 3: boundary-gated swipe — if the touch starts inside a scroll shell
-  // and the user actually scrolled (or the shell isn't at the appropriate
-  // boundary), suppress the page flip so scroll wins.
   const swipe = useRef<{
     x: number | null
     y: number | null
     t: number
-    scrollEl: HTMLElement | null
-    startScrollTop: number
-  }>({ x: null, y: null, t: 0, scrollEl: null, startScrollTop: 0 })
+  }>({ x: null, y: null, t: 0 })
 
   const onTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
     claim()
     const t = e.touches?.[0]
     if (!t) return
-    const target = e.target as HTMLElement | null
-    const scrollEl =
-      (target?.closest?.('.page-scroll-shell') as HTMLElement | null) ?? null
     swipe.current = {
       x: t.clientX,
       y: t.clientY,
       t: Date.now(),
-      scrollEl,
-      startScrollTop: scrollEl?.scrollTop ?? 0,
     }
   }
 
   const onTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
     const start = swipe.current
-    swipe.current = { x: null, y: null, t: 0, scrollEl: null, startScrollTop: 0 }
+    swipe.current = { x: null, y: null, t: 0 }
     if (start.x == null || start.y == null) return
     const t = e.changedTouches?.[0]
     if (!t) return
@@ -236,49 +226,14 @@ export default function Book({
     if (Math.abs(dx) < 32) return
     if (Math.abs(dy) > Math.abs(dx) * 0.8) return // mostly vertical, not a horizontal swipe
 
-    const el = start.scrollEl
-    if (el) {
-      const currentTop = el.scrollTop
-      const maxScroll = el.scrollHeight - el.clientHeight
-      const hasScroll = maxScroll > 1
-      const userScrolled = Math.abs(currentTop - start.startScrollTop) > 2
-      if (userScrolled) return // user actually scrolled; respect that
-      if (hasScroll) {
-        if (dx > 0 && currentTop > 1) return // prev requires at-top
-        if (dx < 0 && currentTop < maxScroll - 1) return // next requires at-bottom
-      }
-      // no-scroll case: swipe always allowed
-    }
-
     if (dx > 0) goPrev()
     else goNext()
   }
 
-  // Step 3: boundary check for tap-zones. Returns true if the tap should
-  // trigger a flip; false if the page is scrolled and the user should scroll
-  // further (or back) before flipping. Uses bookRootRef to find the relevant
-  // shell on the appropriate side.
-  const tapShouldFlip = (side: 'prev' | 'next') => {
-    const root = bookRootRef.current
-    if (!root) return true
-    const sel =
-      side === 'prev'
-        ? '.bg-left .page-scroll-shell, .bg-single .page-scroll-shell'
-        : '.bg-right .page-scroll-shell, .bg-single .page-scroll-shell'
-    const el = root.querySelector(sel) as HTMLElement | null
-    if (!el) return true
-    const maxScroll = el.scrollHeight - el.clientHeight
-    if (maxScroll <= 1) return true
-    if (side === 'prev') return el.scrollTop <= 1
-    return el.scrollTop >= maxScroll - 1
-  }
-
   const onTapPrev = () => {
-    if (!tapShouldFlip('prev')) return
     goPrev()
   }
   const onTapNext = () => {
-    if (!tapShouldFlip('next')) return
     goNext()
   }
 

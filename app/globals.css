@@ -280,7 +280,7 @@ body {
    이 묻혀 안 됨.) */
 .tap-zone {
   position: absolute; top: 0; bottom: 0;
-  width: 56px;
+  width: 100px;
   background: transparent; border: 0; cursor: pointer;
   z-index: 6;
   -webkit-tap-highlight-color: transparent;
@@ -288,10 +288,6 @@ body {
 .tap-prev { left: 0; }
 .tap-next { right: 0; }
 .tap-zone:disabled { cursor: default; }
-
-@media (min-width: 900px) {
-  .tap-zone { width: 72px; }
-}
 
 .page-foot {
   position: absolute; bottom: 56px; left: 0; right: 0; height: 0;
